@@ -40,3 +40,10 @@ Status reported to HTTP Server (into webserver_queue):
 
 test_stage_order=['lock','configure','prepare','start','poll','end','postprocess','finish','none']
 
+def is_A_earlier_than_B(stage_A,stage_B):
+    """Slow but reliable"""
+    return test_stage_order.index(stage_A) < test_stage_order.index(stage_B)
+
+def is_A_later_than_B(stage_A,stage_B):
+    """Slow but reliable"""
+    return test_stage_order.index(stage_A) > test_stage_order.index(stage_B)
