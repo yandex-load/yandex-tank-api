@@ -17,6 +17,7 @@ Commands from HTTP Server (from manager_queue):
 
 Status reported by tank (from manager_queue):
     {
+     'status': 'running'|'success'|'failure'
      'current_stage': --- current stage (from test_stage_order)
      'break': --- stage to make a break before
      'failures': --- [ {'stage': stage-at-which-failed,'reason': reason of failure }, 
