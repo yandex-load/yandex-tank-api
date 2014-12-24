@@ -19,6 +19,7 @@ Status reported by tank (from manager_queue):
     {
      'status':'running'|'success'|'failed',
      'current_stage': --- the same as in break request, optional
+     'failed_stage': --- the stage where we failed ('' if no failures)
      'break': --- stage to make a break before
      'reason': --- optional 
      }    
