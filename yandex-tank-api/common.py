@@ -37,6 +37,7 @@ Status reported to HTTP Server (into webserver_queue):
     'status': 'running'|'success'|'failed' (from tank or from  manager)
     'stage': --- optional, from tank only
     'reason' : --- optional (from tank or from manager)
+    'failures': --- optional, from tank only
     }
 """
 
