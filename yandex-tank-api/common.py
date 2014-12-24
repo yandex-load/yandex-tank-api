@@ -44,6 +44,3 @@ def is_A_earlier_than_B(stage_A,stage_B):
     """Slow but reliable"""
     return test_stage_order.index(stage_A) < test_stage_order.index(stage_B)
 
-def is_A_later_than_B(stage_A,stage_B):
-    """Slow but reliable"""
-    return test_stage_order.index(stage_A) > test_stage_order.index(stage_B)
