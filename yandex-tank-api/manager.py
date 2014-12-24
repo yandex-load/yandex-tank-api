@@ -21,7 +21,7 @@ class TankRunner(object):
                  tank_config,
                  first_break='lock'):
         """
-        Sets up working directory and tank queue 
+        Sets up working directory and tank queue
         Starts tank process
         """
         self.log = logging.getLogger(__name__)
@@ -40,11 +40,11 @@ class TankRunner(object):
         #Create load.ini
         tank_config_file=open(work_dir+'/load.ini','w')
         tank_config_file.write(tank_config)
-        
+
         #Create tank queue and put first break there
         self.tank_queue=multiprocessing.Queue()
         self.set_break(first_break)
-        
+
         #Start tank process
         self.tank_process=multiprocessing.Process(target=worker.run,args=(self.tank_queue,manager_queue,work_dir))
         self.tank_process.start()
@@ -68,7 +68,7 @@ class TankRunner(object):
 
     def __del__(self):
         self.stop()
-                
+
 class Manager(object):
     """
     Implements the message processing logic
@@ -122,7 +122,7 @@ class Manager(object):
 
         if msg['cmd']=='run':
            if self.session is not None:
-               #New break for running session 
+               #New break for running session
                if msg['session']!=self.session:
                    self.webserver_queue.put({'session':msg['session'],
                                               'status':'failed',
@@ -152,7 +152,7 @@ class Manager(object):
                        self.webserver_queue.put({'session':msg['session'],
                                                  'status':'failed',
                                                  'reason':'Failed to start tank: '+str(ex)})
-                                          
+
 
            return
 
@@ -161,7 +161,7 @@ class Manager(object):
 
     def run(self):
         """
-        Manager event loop. 
+        Manager event loop.
         Processing messages from self.manager_queue
         Checking that tank is alive
         """
@@ -192,18 +192,18 @@ class Manager(object):
             else:
                 logging.error("Strange message (not a command and not a status) ")
 
-                
+
 def run_server():
     """Runs the whole yandex-tank-api server """
 
     #Configure
     #TODO: un-hardcode cfg
     cfg={'tank_check_interval':1.0,
-         'tests_dir':'/var/lib/yandex-tank-api/tests'}     
+         'tests_dir':'/var/lib/yandex-tank-api/tests'}
     #TODO: setup logging
 
     #TODO: daemonize
-    
+
     #Create queues for manager and webserver
     manager_queue=multiprocessing.Queue()
     webserver_queue=multiprocessing.Queue()
@@ -214,5 +214,3 @@ def run_server():
 
     #Run
     Manager(cfg,manager_queue,webserver_queue).run()
-    
-
