@@ -64,6 +64,77 @@ class RunHandler(tornado.web.RequestHandler):
         ))
 
 
+class StopHandler(tornado.web.RequestHandler):
+    def initialize(self, out_queue, sessions):
+        self.out_queue = out_queue
+        self.sessions = sessions
+
+    def get(self):
+        breakpoint = self.request.arguments.get("break", "none")
+        session_id = self.request.arguments.get("session")
+
+        # TODO: find session in db
+        # TODO: 404 if no such session
+        # TODO: post stop command to manager queue
+
+        self.set_status(200)
+        self.set_header("Content-type", "application/json")
+        self.finish(json.dumps(
+            {
+                # "test": test_id,
+                "session": session_id,
+            }
+        ))
+
+class StatusHandler(tornado.web.RequestHandler):
+    def initialize(self, out_queue, sessions):
+        self.out_queue = out_queue
+        self.sessions = sessions
+
+    def get(self):
+        breakpoint = self.request.arguments.get("break", "none")
+        session_id = self.request.arguments.get("session")
+
+        # TODO: find session in db and get its status
+        # TODO: 404 if no such session
+        # TODO: 500 if failed
+
+        self.set_status(200)
+        self.set_header("Content-type", "application/json")
+        self.finish(json.dumps(
+            {
+                # "test": test_id,
+                "session": session_id,
+                "status": "",
+            }
+        ))
+
+
+class ArtifactHandler(tornado.web.RequestHandler):
+    def initialize(self, out_queue, sessions):
+        self.out_queue = out_queue
+        self.sessions = sessions
+
+    def get(self):
+        test_id = self.request.arguments.get("test")
+        filename = self.request.arguments.get("filename")
+
+        # TODO: return list of filest for this test if no filename specified
+        # TODO: return file if found
+        # TODO: 404 if no such file
+        # TODO: 503 if too large file and shooting in progress
+
+        self.set_status(200)
+        self.set_header("Content-type", "application/json")
+        self.finish(json.dumps(
+            {
+                # "test": test_id,
+                "session": session_id,
+                "status": "",
+            }
+        ))
+
+
 class ApiServer(object):
     def __init__(self):
         self.in_queue = None # TODO: pass it as a parameter
