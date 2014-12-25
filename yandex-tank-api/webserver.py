@@ -154,8 +154,8 @@ class ApiServer(object):
         )
 
     def update_status(self):
-        # TODO: update self.sessions from queue
-        pass
+        while message = self.in_queue.get_nowait():
+            self.sessions[message.get('session')] = message
 
     def serve(self):
         self.app.listen(8888)
