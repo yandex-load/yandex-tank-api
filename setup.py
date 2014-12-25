@@ -44,6 +44,7 @@ setup(
     install_requires=requireModules([
 
     ]),
+    entry_points={'console-scripts':['yandex-tank-api.manager:run']},
 
     test_suite='yandex-tank-api'
 )
