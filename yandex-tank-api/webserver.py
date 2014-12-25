@@ -152,25 +152,21 @@ class StopHandler(tornado.web.RequestHandler):
                             'session': session_id,
                         }
                     ))
+                    return
             else:
                 self.set_status(404)
                 self.finish(json.dumps({
                     'reason': 'No session with this ID found',
                     'session': session_id,
                 }))
+                return
         else:
             self.set_status(400)
             self.finish(json.dumps(
                 {'reason': 'Specify an ID of a session you want to stop'}
             ))
-        self.set_status(200)
-        self.set_header("Content-type", "application/json")
-        self.finish(json.dumps(
-            {
-                # "test": test_id,
-                "session": session_id,
-            }
-        ))
+            return
+
 
 class StatusHandler(tornado.web.RequestHandler):
     def initialize(self, out_queue, sessions, working_dir):
@@ -265,10 +261,10 @@ class ArtifactHandler(tornado.web.RequestHandler):
 
 
 class ApiServer(object):
-    def __init__(self):
-        self.in_queue = None # TODO: pass it as a parameter
-        self.out_queue = None # TODO: pass it as a parameter
-        self.working_dir = None # TODO: pass it as a parameter
+    def __init__(self, in_queue, out_queue, working_dir):
+        self.in_queue = in_queue
+        self.out_queue = out_queue
+        self.working_dir = working_dir
         self.sessions = {}
         handler_params = dict(
             out_queue=self.out_queue,
@@ -320,8 +316,4 @@ def main(webserver_queue, manager_queue, test_directory):
         Directory where tests are
 
     """
-    pass
-
-if __name__ == '__main__':
-    # main()
-    ApiServer().serve()
+    ApiServer(webserver_queue, manager_queue, test_directory).serve()
