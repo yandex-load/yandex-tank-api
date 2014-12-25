@@ -153,9 +153,16 @@ class ApiServer(object):
             debug=True,
         )
 
+    def update_status(self):
+        # TODO: update self.sessions from queue
+        pass
+
     def serve(self):
         self.app.listen(8888)
-        tornado.ioloop.IOLoop.instance().start()
+        ioloop = tornado.ioloop.IOLoop.instance()
+        update_cb = tornado.ioloop.PeriodicCallback(self.update_status, 500, ioloop)
+        update_cb.start()
+        ioloop.start()
 
 
 def main(webserver_queue, manager_queue, test_directory):
