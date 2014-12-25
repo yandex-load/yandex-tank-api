@@ -156,20 +156,24 @@ class StatusHandler(tornado.web.RequestHandler):
     def get(self):
         breakpoint = self.request.arguments.get("break", "none")
         session_id = self.request.arguments.get("session")
-
-        # TODO: find session in db and get its status
-        # TODO: 404 if no such session
-        # TODO: 500 if failed
-
-        self.set_status(200)
         self.set_header("Content-type", "application/json")
-        self.finish(json.dumps(
-            {
-                # "test": test_id,
-                "session": session_id,
-                "status": "",
-            }
-        ))
+        if session_id:
+            if session_id in self.sessions:
+                self.set_status(200)
+                self.finish(json.dumps(
+                    self.sessions[session_id]
+                ))
+            else:
+                self.set_status(404)
+                self.finish(json.dumps({
+                    'reason': 'No session with this ID found',
+                    'session': session_id,
+                }))
+        else:
+            self.set_status(200)
+            self.finish(json.dumps(
+                self.sessions
+            ))
 
 
 class ArtifactHandler(tornado.web.RequestHandler):
