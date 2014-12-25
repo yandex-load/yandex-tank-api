@@ -118,9 +118,13 @@ class TankWorker:
             #Check that there is a break in the message
             if 'break' not in msg:
                 self.log.error("No break sepcified in the recieved message from manager")
+                continue
             br=msg['break']
+            #Check taht the name is valid
+            if br not in common.test_stage_order:
+                self.log.error("Manager requested break at an unknown stage: %s",br)
             #Check that the break is later than br
-            if common.is_A_earlier_than_B(br,self.break_at):
+            elif common.is_A_earlier_than_B(br,self.break_at):
                 self.log.error("Recieved break %s which is earlier than current next break %s",br,self.break_at)
             else:
                 self.log.info("Changing the next break from %s to %s",self.break_at,br)
