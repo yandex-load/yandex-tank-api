@@ -102,13 +102,17 @@ class TankWorker:
 
     def report_status()
         """Report status to manager"""
-        self.manager_queue.put({'status':self.status,
+        status='running'
+        if self.stage='finished':
+            status= 'failed' if failures else 'success'
+        
+        self.manager_queue.put({'status':status,
                                 'current_stage':self.stage,
                                 'break':self.break_at,
                                 'failures':self.failures})
  
     def failure(self,reason):
-        """Set and report the first failure"""
+        """Report a failure in the current stage"""
         self.failures.append({'stage':self.stage,'reason':reason})
         self.report_status()
 
@@ -190,8 +194,10 @@ class TankWorker:
 
         try:
            retcode = perform_test()
-
-        self.set_stage('
+        except Exception as ex:
+           self.failure("Unhandled exception:" + traceback.format_exc(ex) )
+        #TODO: send retcode    
+        self.set_stage('finished')
 
 def run(tank_queue,manager_queue,work_dir):
     """
@@ -205,5 +211,5 @@ def run(tank_queue,manager_queue,work_dir):
         Write tank status there
        
     """
-
-    pass
+    TankWorker(tank_queue,manager_queue,work_dir).run()
+    
