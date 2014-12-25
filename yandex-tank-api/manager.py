@@ -124,10 +124,7 @@ class Manager(object):
            if self.session is not None:
                #New break for running session
                if msg['session']!=self.session:
-                   self.webserver_queue.put({'session':msg['session'],
-                                              'status':'failed',
-                                              'reason':'Running another session'})
-                   self.log.error("Recieved a command for session other than current")
+                   raise RuntimeError("Webserver requested to start session when another one is already running")
                elif 'break' in msg:
                    self.tank_runner.set_break(msg['break'])
                else:
@@ -146,11 +143,13 @@ class Manager(object):
                                                          manager_queue=self.manager_queue,
                                                          test_id=self.test,
                                                          tank_config=msg['config'],
-                                                         first_break=msg.get('break','lock')
+                                                         first_break=msg['break']
                                                          )
                    except Exception as ex:
                        self.webserver_queue.put({'session':msg['session'],
                                                  'status':'failed',
+                                                 'test':self.test,
+                                                 'break':msg['break'],
                                                  'reason':'Failed to start tank: '+str(ex)})
 
 
@@ -209,7 +208,7 @@ def run_server():
     webserver_queue=multiprocessing.Queue()
 
     #Fork webserver
-    webserver_process=multiprocessing.Process(target=webserver.run,args=(webserver_queue,manager_queue,cfg['tests_dir']))
+    webserver_process=multiprocessing.Process(target=webserver.main,args=(webserver_queue,manager_queue,cfg['tests_dir']))
     webserver_process.start()
 
     #Run
