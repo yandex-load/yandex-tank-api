@@ -114,7 +114,7 @@ class TankWorker:
         Check it for sanity
         """
         while True:
-            msg=self.manager_queue.get()
+            msg=self.tank_queue.get()
             #Check that there is a break in the message
             if 'break' not in msg:
                 self.log.error("No break sepcified in the recieved message from manager")
@@ -127,26 +127,25 @@ class TankWorker:
                 self.break_at=br
                 return
 
-    def report_status(self):
+    def report_status(self,status='running',retcode=None):
         """Report status to manager"""
-        status='running'
-        if self.stage=='finished':
-            status = 'failed' if self.failures else 'success'
-        
-        self.manager_queue.put({'status':status,
-                                'current_stage':self.stage,
-                                'break':self.break_at,
-                                'failures':self.failures})
+        msg={'status':status,
+             'current_stage':self.stage,
+             'break':self.break_at,
+             'failures':self.failures}
+        if retcode is not None:
+            msg['retcode']=retcode
+        self.manager_queue.put(msg)    
  
     def failure(self,reason):
         """Report a failure in the current stage"""
         self.failures.append({'stage':self.stage,'reason':reason})
         self.report_status()
 
-    def set_stage(self,stage):
+    def set_stage(self,stage,status='running'):
         """Unconditionally switch stage and report status to manager"""
         self.stage=stage
-        self.report_status()
+        self.report_status(status)
        
     def next_stage(self,stage):
         """Switch to next test stage if allowed"""
@@ -167,7 +166,8 @@ class TankWorker:
         except Exception:
             self.log.exception("Failed to obtain lock")
             self.failure('Failed to obtain lock')
-            return retcode
+            self.report_status(status='failed',retcode=retcode)
+            return
 
         try:
             self.__preconfigure()
@@ -211,17 +211,11 @@ class TankWorker:
             finally:            
                 self.next_stage('unlock')
                 self.core.release_lock()
+                self.set_stage('finish')
+                self.report_status(status='failed' if self.failures else 'success',
+                                   retcode=retcode)
         self.log.info("Done performing test with code %s", retcode)
 
-        return retcode
-
-    def run(self):
-        try:
-           retcode = self.perform_test()
-        except Exception as ex:
-           self.failure("Unhandled exception:" + traceback.format_exc(ex) )
-        #TODO: send retcode    
-        self.set_stage('finished')
 
 def run(tank_queue,manager_queue,work_dir):
     """
@@ -235,5 +229,5 @@ def run(tank_queue,manager_queue,work_dir):
         Write tank status there
        
     """
-    TankWorker(tank_queue,manager_queue,work_dir).run()
+    TankWorker(tank_queue,manager_queue,work_dir).perform_test()
     
