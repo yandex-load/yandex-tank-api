@@ -13,51 +13,78 @@ from tornado import template
 from pyjade.ext.tornado import patch_tornado
 patch_tornado()
 
-class JsonHandler(tornado.web.RequestHandler):
-    def initialize(self, reportUUID, cacher):
-        self.reportUUID = reportUUID
-        self.cacher = cacher
+class RunHandler(tornado.web.RequestHandler):
+    def initialize(self, out_queue, sessions):
+        self.out_queue = out_queue
+        self.sessions = sessions
 
-    def get(self):
-        if self.cacher is not None:
-            cached_data = {
-              'data': self.cacher.get_all_data(),
-              'uuid': self.reportUUID,
-            }
-        else:
-            cached_data = {
-              'data':{},
-              'uuid': self.reportUUID,
-            }
+    def post(self):
+
+        test_id = self.request.arguments.get("test", uuid.uuid4().hex)
+        breakpoint = self.request.arguments.get("break", "none")
+        session_id = uuid.uuid4().hex
+        config = self.request.body
+
+        # TODO: test for existing test with this id
+        # TODO: answer 409 if exists finished test
+        # TODO: answer 503 if exists and running
+        # TODO: answer 503 if other test is running
+
+        # TODO: post run command to manager queue
+        print config
+
         self.set_status(200)
         self.set_header("Content-type", "application/json")
-        self.finish(json.dumps(cached_data))
+        self.finish(json.dumps(
+            {
+                "test": test_id,
+                "session": session_id,
+                "breakpoint": breakpoint,
+            }
+        ))
+
+    def get(self):
+        breakpoint = self.request.arguments.get("break", "none")
+        session_id = self.request.arguments.get("session")
+
+        # TODO: find session in db
+        # TODO: 404 if no such session
+        # TODO: 418 if in higher state
+        # TODO: 500 if failed
+        # TODO: post run command to manager queue
+
+        self.set_status(200)
+        self.set_header("Content-type", "application/json")
+        self.finish(json.dumps(
+            {
+                # "test": test_id,
+                "session": session_id,
+                "breakpoint": breakpoint,
+            }
+        ))
 
 
 class ApiServer(object):
-    def __init__(self, cacher):
-        router = TornadioRouter(Client)
-        self.cacher = cacher
-        self.reportUUID = uuid.uuid4().hex
+    def __init__(self):
+        self.in_queue = None # TODO: pass it as a parameter
+        self.out_queue = None # TODO: pass it as a parameter
+        self.sessions = {}
+        handler_params = dict(out_queue=self.out_queue, sessions=self.sessions)
         self.app = tornado.web.Application(
-            router.apply_routes([
-              (r"/data\.json$", JsonHandler, dict(reportUUID=self.reportUUID, cacher=cacher)),
-            ]),
+            [
+                (r"/run", RunHandler, handler_params),
+                #   (r"/stop", StopHandler),
+                #   (r"/status", StatusHandler),
+                #   (r"/artifact", ArtifactHandler),
+            ],
             template_path=os.path.join(os.path.dirname(__file__), "templates"),
             static_path=os.path.join(os.path.dirname(__file__), "static"),
             debug=True,
-            )
+        )
 
     def serve(self):
-        def run_server(server):
-            tornado.ioloop.IOLoop.instance().start()
-
-        self.server = SocketServer(self.app, auto_start = False)
-        th = Thread(target=run_server, args=(self.server,))
-        th.start()
-
-    def stop(self):
-        self.server.stop()
+        self.app.listen(8888)
+        tornado.ioloop.IOLoop.instance().start()
 
 
 def main(webserver_queue, manager_queue, test_directory):
@@ -74,7 +101,8 @@ def main(webserver_queue, manager_queue, test_directory):
         Directory where tests are
 
     """
-    raise NotImplementedError("Webserver not implemented")
+    pass
 
 if __name__ == '__main__':
-    main()
+    # main()
+    ApiServer().serve()
