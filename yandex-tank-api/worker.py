@@ -3,15 +3,14 @@ Tank worker process for yandex-tank-api
 Based on ConsoleWorker from yandex-tank
 """
 
-import datetime
 import fnmatch
 import logging
 import os
+import os.path
 import sys
-import time
 import traceback
 import signal
-from optparse import OptionParser
+import json
 
 #Yandex.Tank modules
 #TODO: split yandex-tank and make python-way install
@@ -53,7 +52,7 @@ class TankWorker:
 
     def __add_log_file(self,logger,loglevel,filename):
         """Adds FileHandler to logger; adds filename to artifacts"""
-        full_filename=self.working_dir+os.sep+filename
+        full_filename=os.path.join(self.working_dir,filename)
 
         self.core.add_artifact_file(full_filename)
 
@@ -131,25 +130,27 @@ class TankWorker:
                 self.break_at=br
                 return
 
-    def report_status(self,status='running',retcode=None):
-        """Report status to manager"""
+    def report_status(self,status='running',retcode=None,dump_status=True):
+        """Report status to manager and dump status.json, if required"""
         msg={'status':status,
              'current_stage':self.stage,
              'break':self.break_at,
              'failures':self.failures}
         if retcode is not None:
             msg['retcode']=retcode
-        self.manager_queue.put(msg)    
+        self.manager_queue.put(msg)
+        if dump_status:
+            json.dump(msg,open(os.path.join(self.working_dir,'status.json')),indent=4)
  
-    def failure(self,reason):
+    def failure(self,reason,dump_status=True):
         """Report a failure in the current stage"""
         self.failures.append({'stage':self.stage,'reason':reason})
-        self.report_status()
+        self.report_status(dump_status=dump_status)
 
-    def set_stage(self,stage,status='running'):
+    def set_stage(self,stage,status='running',dump_status=True):
         """Unconditionally switch stage and report status to manager"""
         self.stage=stage
-        self.report_status(status)
+        self.report_status(status,dump_status=dump_status)
        
     def next_stage(self,stage):
         """Switch to next test stage if allowed"""
@@ -163,14 +164,14 @@ class TankWorker:
         """Perform the test sequence via TankCore"""
         retcode = 1
 
-        self.set_stage('lock')
+        self.set_stage('lock',dump_status=False)
 
         try:
             self.core.get_lock(force=False)
         except Exception:
             self.log.exception("Failed to obtain lock")
-            self.failure('Failed to obtain lock')
-            self.report_status(status='failed',retcode=retcode)
+            self.failure('Failed to obtain lock',dump_status=False)
+            self.report_status(status='failed',retcode=retcode,dump_status=False)
             return
 
         try:
