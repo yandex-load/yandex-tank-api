@@ -40,7 +40,7 @@ Status reported to HTTP Server (into webserver_queue):
                failed: tank has exited and there were failures
 
     'stage': --- optional, from tank only. This is the last stage that was executed.
-                 
+    'break': --- optional, from tank only. The next break.                 
     'reason' : --- optional (from manager)
     'failures': --- optional, from tank only
     }
