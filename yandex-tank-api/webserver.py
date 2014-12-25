@@ -42,7 +42,7 @@ class RunHandler(tornado.web.RequestHandler):
         running_session=None
         conflict_session=None
         for s in self.sessions:
-            if s['status'] not in ['success','finished']:
+            if s['status'] not in ['success','failed']:
                 running_session=s
             if s['test']==test_id:
                 conflict_session=s
@@ -135,10 +135,34 @@ class StopHandler(tornado.web.RequestHandler):
 
     def get(self):
         session_id = self.request.arguments.get("session")
-
-        # 404 if no such session
-        # TODO: post stop command to manager queue
-
+        if session_id:
+            if session_id in self.sessions:
+                if self.sessions[session_id]['status'] not in ['success','failed']:
+                    self.out_queue.put({
+                        'cmd': 'stop',
+                        'session': session_id,
+                    })
+                    self.set_status(200)
+                    return
+                else:
+                    self.set_status(409)
+                    self.finish(json.dumps(
+                        {
+                            'reason': 'This session is already stopped',
+                            'session': session_id,
+                        }
+                    ))
+            else:
+                self.set_status(404)
+                self.finish(json.dumps({
+                    'reason': 'No session with this ID found',
+                    'session': session_id,
+                }))
+        else:
+            self.set_status(400)
+            self.finish(json.dumps(
+                {'reason': 'Specify an ID of a session you want to stop'}
+            ))
         self.set_status(200)
         self.set_header("Content-type", "application/json")
         self.finish(json.dumps(
@@ -202,7 +226,7 @@ class ArtifactHandler(tornado.web.RequestHandler):
             if os.path.exists(filepath):
                 file_size = os.stat(filepath)
 
-                if file_size > TRANSFER_SIZE_LIMIT and any(s['status'] not in ['success','finished'] for s in self.sessions):
+                if file_size > TRANSFER_SIZE_LIMIT and any(s['status'] not in ['success','failed'] for s in self.sessions):
                     self.set_header("Content-type", "application/json")
                     self.set_status(503)
                     self.finish(json.dumps({
