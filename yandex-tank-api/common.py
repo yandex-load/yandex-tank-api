@@ -35,8 +35,13 @@ Status reported to HTTP Server (into webserver_queue):
     'session': '1a2b4f3c'
     'test': 'DEATHSTAR-10-12345'
     'status': 'running'|'success'|'failed' (from tank or from  manager)
-    'stage': --- optional, from tank only
-    'reason' : --- optional (from tank or from manager)
+               running: the tank is running
+               success: tank has exited and no failures occured
+               failed: tank has exited and there were failures
+
+    'stage': --- optional, from tank only. This is the last stage that was executed.
+                 
+    'reason' : --- optional (from manager)
     'failures': --- optional, from tank only
     }
 """
