@@ -100,7 +100,26 @@ class TankWorker:
         self.core.load_configs( self.__get_configs() )
         self.core.load_plugins()
 
-    def report_status()
+    def get_next_break():
+        """
+        Read the next break from tank queue
+        Check it for sanity
+        """
+        while True:
+            msg=self.manager_queue.get()
+            #Check that there is a break in the message
+            if 'break' not in msg:
+                self.log.error("No break sepcified in the recieved message from manager")
+            br=msg['break']
+            #Check that the break is later than br
+            if common.is_A_earlier_than_B(br,self.break_at):
+                self.log.error("Recieved break %s which is earlier than current next break %s",br,self.break_at)
+            else:
+                self.log.info("Changing the next break from %s to %s",self.break_at,br)
+                self.break_at=br
+                return
+
+    def report_status():
         """Report status to manager"""
         status='running'
         if self.stage='finished':
@@ -127,7 +146,7 @@ class TankWorker:
             #We have reached the set break
             #Waiting until another, later, break is set by manager
             self.get_next_break()
-        self.switch_stage(stage)
+        self.set_stage(stage)
         
     def perform_test(self):
         """Perform the test sequence via TankCore"""
