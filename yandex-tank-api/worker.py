@@ -37,10 +37,18 @@ class TankWorker:
     IGNORE_LOCKS = "ignore_locks"
 
     def __init__(self, tank_queue, manager_queue, working_dir):
-
-        self.log = logging.getLogger(__name__)
+        
+        #Parameters from manager
+        self.tank_queue=tank_queue
+        self.manager_queue=manager_queue
         self.working_dir = working_dir
 
+        #State variables
+        self.break_at='lock'
+        self.stage='started' #Not reported anywhere to anybody
+        self.failures=[]
+
+        self.log = logging.getLogger(__name__)
         self.core = tankcore.TankCore()
 
     def __add_log_file(self,logger,loglevel,filename):
@@ -75,13 +83,13 @@ class TankWorker:
             conf_files.sort()
             for filename in conf_files:
                 if fnmatch.fnmatch(filename, '*.ini'):
-                    config_file = os.path.realpath(self.baseconfigs_location + os.sep + filename)
+                    config_file = os.path.realpath(config_dir + os.sep + filename)
                     self.log.debug("Adding config file: %s",config_file)
                     configs += [config_file]
         except OSError:
             self.log.error("Failed to get configs from %s",config_dir)
 
-       return configs
+        return configs
 
     def __get_configs(self):
         """Returns list of all configs for this test"""
@@ -100,7 +108,7 @@ class TankWorker:
         self.core.load_configs( self.__get_configs() )
         self.core.load_plugins()
 
-    def get_next_break():
+    def get_next_break(self):
         """
         Read the next break from tank queue
         Check it for sanity
@@ -119,11 +127,11 @@ class TankWorker:
                 self.break_at=br
                 return
 
-    def report_status():
+    def report_status(self):
         """Report status to manager"""
         status='running'
-        if self.stage='finished':
-            status= 'failed' if failures else 'success'
+        if self.stage=='finished':
+            status = 'failed' if self.failures else 'success'
         
         self.manager_queue.put({'status':status,
                                 'current_stage':self.stage,
@@ -140,7 +148,7 @@ class TankWorker:
         self.stage=stage
         self.report_status()
        
-    def next_stage(stage):
+    def next_stage(self,stage):
         """Switch to next test stage if allowed"""
         while not common.is_A_earlier_than_B(stage,self.break_at):
             #We have reached the set break
@@ -155,8 +163,9 @@ class TankWorker:
         self.set_stage('lock')
 
         try:
-            self.core.get_lock(self.options.ignore_lock)
+            self.core.get_lock(force=False)
         except Exception:
+            self.log.exception("Failed to obtain lock")
             self.failure('Failed to obtain lock')
             return retcode
 
@@ -180,9 +189,9 @@ class TankWorker:
             self.log.info("Interrupted, trying to exit gracefully...")
 
         except Exception as ex:
-            self.failure("Exception:" + traceback.format_exc(ex) )
             self.log.exception("Exception occured:")
             self.log.info("Trying to exit gracefully...")
+            self.failure("Exception:" + traceback.format_exc(ex) )
 
         finally:
             try:
@@ -197,8 +206,8 @@ class TankWorker:
                 self.failure("Interrupted")
                 self.log.info("Interrupted during test shutdown...")
             except Exception as ex:
-                self.failure("Exception:" + traceback.format_exc(ex) )
                 self.log.exception("Exception occured while finishing test")
+                self.failure("Exception:" + traceback.format_exc(ex) )
             finally:            
                 self.next_stage('unlock')
                 self.core.release_lock()
@@ -206,13 +215,9 @@ class TankWorker:
 
         return retcode
 
-    def run():
-        self.break_at='lock'
-        self.stage='started' #Not reported anywhere to anybody
-        self.failures=[]
-
+    def run(self):
         try:
-           retcode = perform_test()
+           retcode = self.perform_test()
         except Exception as ex:
            self.failure("Unhandled exception:" + traceback.format_exc(ex) )
         #TODO: send retcode    
