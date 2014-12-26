@@ -11,9 +11,9 @@ html(lang="en")
     link(rel="stylesheet", href="static/css/bootstrap-theme.min.css")
     link(rel="stylesheet", href="static/css/custom.css")
     script(src="static/js/vendor/jquery.min.js")
+    script(src="static/js/vendor/ace/ace.js")
     script(src="static/js/vendor/angular.min.js")
     script(src="static/js/vendor/bootstrap.min.js")
-    script(src="static/js/vendor/ace/ace.js")
     script(src="static/js/vendor/ace/mode-ini.js")
     script(src="static/js/vendor/ace/ui-ace.js")
     script(src="static/js/manager.js")
@@ -21,4 +21,4 @@ html(lang="en")
     .app.container(ng-app="ng-tank-manager", ng-controller="TankManager")
       h1.page-header Yandex.Tank management console
       #status {{!status}}
-      .ui-ace
+      .tank-config(ui-ace, ng-model="tankConfig")
