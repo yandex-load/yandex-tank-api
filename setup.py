@@ -47,7 +47,7 @@ setup(
     packages=['yandex_tank_api'],
     package_dir={'yandex_tank_api': 'yandex_tank_api'},
     package_data={'yandex_tank_api': [
-        'templates/*.jade'
+        'templates/*.jade',
         'static/css/*.css',
         'static/favicon.ico',
         'static/fonts/*',
