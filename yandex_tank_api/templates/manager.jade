@@ -11,9 +11,11 @@ html(lang="en")
     link(rel="stylesheet", href="static/css/bootstrap-theme.min.css")
     link(rel="stylesheet", href="static/css/custom.css")
     script(src="static/js/vendor/jquery.min.js")
+    script(src="static/js/vendor/underscore.min.js")
     script(src="static/js/vendor/ace/ace.js")
     script(src="static/js/vendor/angular.min.js")
     script(src="static/js/vendor/bootstrap.min.js")
+    script(src="static/js/vendor/ui-bootstrap-tpls-0.12.0.min.js")
     script(src="static/js/vendor/ace/mode-ini.js")
     script(src="static/js/vendor/ace/ui-ace.js")
     script(src="static/js/manager.js")
@@ -30,3 +32,4 @@ html(lang="en")
         button.btn.btn-default(ng-click="stopTest()") Stop test
       p
         #state {{!session_status}}
+        progressbar.progress-striped.active(value="progress", max="{{!max_progress}}") {{!session_status}}
