@@ -189,8 +189,6 @@ class TankWorker:
 
             self.next_stage('start')
             self.core.plugins_start_test()
-
-            self.next_stage('poll')
             retcode = self.core.wait_for_finish()
 
         except KeyboardInterrupt:
