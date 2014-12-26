@@ -13,7 +13,7 @@ Commands from HTTP Server (from manager_queue):
         'session': '1a2b4f3c'
         'cmd':'stop'
         }
-            
+
 
 Status reported by tank (from manager_queue):
     {
@@ -22,10 +22,10 @@ Status reported by tank (from manager_queue):
      'status': 'running'|'success'|'failure'
      'current_stage': --- current stage (from test_stage_order)
      'break': --- stage to make a break before
-     'failures': --- [ {'stage': stage-at-which-failed,'reason': reason of failure }, 
-                       {'stage':stage-of-next-failure,'reason':...}, 
+     'failures': --- [ {'stage': stage-at-which-failed,'reason': reason of failure },
+                       {'stage':stage-of-next-failure,'reason':...},
                        ... ]
-     }    
+     }
 =====
 
 Break requests (into tank_queue):
@@ -42,7 +42,7 @@ Status reported to HTTP Server (into webserver_queue):
                failed: tank has exited and there were failures
 
     'stage': --- optional, from tank only. This is the last stage that was executed.
-    'break': --- optional, from tank only. The next break.                 
+    'break': --- optional, from tank only. The next break.
     'reason' : --- optional (from manager)
     'failures': --- optional, from tank only
     }
@@ -53,4 +53,3 @@ test_stage_order=['lock','init','configure','prepare','start','poll','end','post
 def is_A_earlier_than_B(stage_A,stage_B):
     """Slow but reliable"""
     return test_stage_order.index(stage_A) < test_stage_order.index(stage_B)
-
