@@ -3,7 +3,7 @@
 
   app = angular.module("ng-tank-manager", ['ui.ace']);
 
-  app.controller("TankManager", function($scope, $element, $interval) {
+  app.controller("TankManager", function($scope, $interval, $http) {
     var updateStatus;
     updateStatus = function() {
       return $http.get("status").success(function(data) {
