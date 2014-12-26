@@ -1,7 +1,7 @@
 (function() {
   var app;
 
-  app = angular.module("ng-tank-manager", ['ui.ace']);
+  app = angular.module("ng-tank-manager", ['ui.ace', 'ui.bootstrap']);
 
   app.constant("TEST_STAGES", ['lock', 'init', 'configure', 'prepare', 'start', 'poll', 'end', 'postprocess', 'unlock', 'finish']);
 
