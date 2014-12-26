@@ -48,7 +48,7 @@ Status reported to HTTP Server (into webserver_queue):
     }
 """
 
-test_stage_order=['lock','configure','prepare','start','poll','end','postprocess','unlock','finish']
+test_stage_order=['lock','init','configure','prepare','start','poll','end','postprocess','unlock','finish']
 
 def is_A_earlier_than_B(stage_A,stage_B):
     """Slow but reliable"""
