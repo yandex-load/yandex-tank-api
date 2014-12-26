@@ -9,7 +9,7 @@
       return $http.get("status").success(function(data) {
         $scope.status = data;
         if ($scope.current_session != null) {
-          return $scope.session_status = data['$scope.current_session'].current_stage;
+          return $scope.session_status = data[$scope.current_session].current_stage;
         }
       });
     };
@@ -21,7 +21,7 @@
       });
     };
     $scope.stopTest = function() {
-      return $http.post("stop", $scope.current_session).success(function(data) {
+      return $http.get("stop?session=" + $scope.current_session).success(function(data) {
         return $scope.reply = data;
       });
     };
