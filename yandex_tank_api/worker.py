@@ -148,39 +148,46 @@ class TankWorker:
         if dump_status:
             json.dump(msg,open(os.path.join(self.working_dir,'status.json'),'w'),indent=4)
  
-    def report_failure(self,reason,dump_status=True):
-        """Report a failure in the current stage (also write it into log)"""
+    def process_failure(self,reason,dump_status=True):
+        """
+        Act on failure of current test stage:
+        - log it
+        - report to manager
+        - remove break (otherwise we might wait at end/postprocess!!!)
+        """
         self.log.error("Failure in stage %s:\n%s",self.stage,reason)
         self.failures.append({'stage':self.stage,'reason':reason})
         self.report_status(dump_status=dump_status)
+        self.break_at='finish'
 
     def set_stage(self,stage,status='running',dump_status=True):
         """Unconditionally switch stage and report status to manager"""
         self.stage=stage
         self.report_status(status,dump_status=dump_status)
        
-    def next_stage(self,stage):
+    def next_stage(self,stage,dump_status=True):
         """Switch to next test stage if allowed"""
         while not common.is_A_earlier_than_B(stage,self.break_at):
             #We have reached the set break
             #Waiting until another, later, break is set by manager
             self.get_next_break()
-        self.set_stage(stage)
+        self.set_stage(stage,dump_status=dump_status)
         
     def perform_test(self):
         """Perform the test sequence via TankCore"""
         retcode = 1
 
-        self.set_stage('lock',dump_status=False)
+        self.next_stage('lock',dump_status=False)
 
         try:
             self.core.get_lock(force=False)
         except Exception:
-            self.report_failure('Failed to obtain lock',dump_status=False)
+            self.process_failure('Failed to obtain lock',dump_status=False)
             self.report_status(status='failed',retcode=retcode,dump_status=False)
             return
 
         try:
+            self.next_stage('init')
             self.__preconfigure()
 
             self.next_stage('configure')
@@ -196,11 +203,11 @@ class TankWorker:
             retcode = self.core.wait_for_finish()
 
         except KeyboardInterrupt:
-            self.report_failure("Interrupted")
+            self.process_failure("Interrupted")
 
         except Exception as ex:
             self.log.error("Exception occured, trying to exit gracefully...")
-            self.report_failure("Exception:" + traceback.format_exc(ex) )
+            self.process_failure("Exception:" + traceback.format_exc(ex) )
 
         finally:
             try:
@@ -212,16 +219,16 @@ class TankWorker:
                 self.next_stage('postprocess')
                 retcode = self.core.plugins_post_process(retcode)
             except KeyboardInterrupt:
-                self.report_failure("Interrupted")
+                self.process_failure("Interrupted")
             except Exception as ex:
-                self.report_failure("Exception while finising test:" + traceback.format_exc(ex) )
+                self.process_failure("Exception while finising test:" + traceback.format_exc(ex) )
             finally:            
                 try:
                     self.next_stage('unlock')
                 except KeyboardInterrupt:
-                    self.report_failure("Interrupted")
+                    self.process_failure("Interrupted")
                 except Exception as ex:
-                    self.report_failure("Exception while waiting for permission to unlock:" + traceback.format_exc(ex) )
+                    self.process_failure("Exception while waiting for permission to unlock:" + traceback.format_exc(ex) )
                                  
                 self.core.release_lock()
                 self.set_stage('finish')
