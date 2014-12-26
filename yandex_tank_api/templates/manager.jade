@@ -22,8 +22,8 @@ html(lang="en")
   body
     .app.container(ng-app="ng-tank-manager", ng-controller="TankManager")
       h1.page-header Yandex.Tank management console
-      #status {{!status}}
-      #reply {{!reply}}
+      //#status {{!status}}
+      //#reply {{!reply}}
       p
         .tank-config(ui-ace, ng-model="tankConfig")
       p
@@ -31,5 +31,4 @@ html(lang="en")
         span &nbsp;
         button.btn.btn-default(ng-click="stopTest()") Stop test
       p
-        #state {{!sessionStatus}}
         progressbar.progress-striped.active(value="progress", max="maxProgress") {{!sessionStatus}}
