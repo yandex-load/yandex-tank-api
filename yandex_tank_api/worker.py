@@ -51,6 +51,8 @@ class TankWorker:
 
         self.log = logging.getLogger(__name__)
         self.core = tankcore.TankCore()
+        self.core.artifacts_base_dir = self.working_dir
+        self.core.artifacts_dir = self.working_dir
 
     def __add_log_file(self,logger,loglevel,filename):
         """Adds FileHandler to logger; adds filename to artifacts"""
@@ -146,8 +148,9 @@ class TankWorker:
         if dump_status:
             json.dump(msg,open(os.path.join(self.working_dir,'status.json'),'w'),indent=4)
  
-    def failure(self,reason,dump_status=True):
-        """Report a failure in the current stage"""
+    def report_failure(self,reason,dump_status=True):
+        """Report a failure in the current stage (also write it into log)"""
+        self.log.error("Failure in stage %s:\n%s",self.stage,reason)
         self.failures.append({'stage':self.stage,'reason':reason})
         self.report_status(dump_status=dump_status)
 
@@ -173,8 +176,7 @@ class TankWorker:
         try:
             self.core.get_lock(force=False)
         except Exception:
-            self.log.exception("Failed to obtain lock")
-            self.failure('Failed to obtain lock',dump_status=False)
+            self.report_failure('Failed to obtain lock',dump_status=False)
             self.report_status(status='failed',retcode=retcode,dump_status=False)
             return
 
@@ -192,13 +194,11 @@ class TankWorker:
             retcode = self.core.wait_for_finish()
 
         except KeyboardInterrupt:
-            self.failure("Interrupted")
-            self.log.info("Interrupted, trying to exit gracefully...")
+            self.report_failure("Interrupted")
 
         except Exception as ex:
-            self.log.exception("Exception occured:")
-            self.log.info("Trying to exit gracefully...")
-            self.failure("Exception:" + traceback.format_exc(ex) )
+            self.log.error("Exception occured, trying to exit gracefully...")
+            self.report_failure("Exception:" + traceback.format_exc(ex) )
 
         finally:
             try:
@@ -210,11 +210,9 @@ class TankWorker:
                 self.next_stage('postprocess')
                 retcode = self.core.plugins_post_process(retcode)
             except KeyboardInterrupt:
-                self.failure("Interrupted")
-                self.log.info("Interrupted during test shutdown...")
+                self.report_failure("Interrupted")
             except Exception as ex:
-                self.log.exception("Exception occured while finishing test")
-                self.failure("Exception:" + traceback.format_exc(ex) )
+                self.report_failure("Exception while finising test:" + traceback.format_exc(ex) )
             finally:            
                 self.next_stage('unlock')
                 self.core.release_lock()
