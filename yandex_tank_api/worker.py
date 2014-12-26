@@ -191,6 +191,8 @@ class TankWorker:
 
             self.next_stage('start')
             self.core.plugins_start_test()
+
+            self.next_stage('poll')
             retcode = self.core.wait_for_finish()
 
         except KeyboardInterrupt:
@@ -214,7 +216,13 @@ class TankWorker:
             except Exception as ex:
                 self.report_failure("Exception while finising test:" + traceback.format_exc(ex) )
             finally:            
-                self.next_stage('unlock')
+                try:
+                    self.next_stage('unlock')
+                except KeyboardInterrupt:
+                    self.report_failure("Interrupted")
+                except Exception as ex:
+                    self.report_failure("Exception while waiting for permission to unlock:" + traceback.format_exc(ex) )
+                                 
                 self.core.release_lock()
                 self.set_stage('finish')
                 self.report_status(status='failed' if self.failures else 'success',
