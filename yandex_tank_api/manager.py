@@ -161,22 +161,37 @@ class Manager(object):
         Manager event loop.
         Processing messages from self.manager_queue
         Checking that tank is alive
+
+        When we detect tank death, we need to empty the queue once again
+        to fetch any remaining messages.
         """
+        
+        handle_tank_exit=False
+
         while True:
             try:
                 msg=self.manager_queue.get(block=True,timeout=self.cfg['tank_check_interval'] )
             except multiprocessing.queues.Empty:
-                if self.session is not None and not self.tank_runner.is_alive():
-                    #Tank exit
-                    if self.last_tank_status=='running' or self.tank_runner.get_exitcode() !=0:
-                        #Unexpected exit
-                        self.webserver_queue.put({'session':self.session,
+                if handle_tank_exit:
+                   # We detected tank death and made sure the queue is empty. Do what we should.
+                   if self.last_tank_status=='running' or self.tank_runner.get_exitcode() !=0:
+                       # Report unexpected death
+                       self.webserver_queue.put({'session':self.session,
                                                   'test':self.test,
                                                   'status':'failed',
                                                   'reason':'Tank died unexpectedly'})
-                    self.reset_session()
+                   # In any case, reset the session
+                   self.reset_session()
+                   handle_tank_exit=False
+
+                elif self.session is not None and not self.tank_runner.is_alive():
+                    # Tank has died.
+                    # Fetch any remaining messages and wait one more timeout
+                    # before reporting unexpected death and resetting session
+                    handle_tank_exit = True   
+                   
                 else:
-                    #No messages. Either no session or tank is just quietly doing something
+                    #No messages. Either no session or tank is just quietly doing something.
                     continue
 
             #Process next message
