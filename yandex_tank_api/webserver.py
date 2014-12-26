@@ -32,8 +32,8 @@ class RunHandler(tornado.web.RequestHandler):
 
     def post(self):
 
-        test_id = self.request.arguments.get("test", uuid.uuid4().hex)
-        breakpoint = self.request.arguments.get("break", "finish")
+        test_id = self.get_argument("test", uuid.uuid4().hex)
+        breakpoint = self.get_argument("break", "finish")
         session_id = uuid.uuid4().hex
         config = self.request.body
 
@@ -87,8 +87,8 @@ class RunHandler(tornado.web.RequestHandler):
                                }))
 
     def get(self):
-        breakpoint = self.request.arguments.get("break", "finish")
-        session_id = self.request.arguments.get("session")
+        breakpoint = self.get_argument("break", "finish")
+        session_id = self.get_argument("session")
         self.set_header("Content-type", "application/json")
 
         # 400 if invalid breakpoint
@@ -135,7 +135,7 @@ class StopHandler(tornado.web.RequestHandler):
         self.sessions = sessions
 
     def get(self):
-        session_id = self.request.arguments.get("session")
+        session_id = self.get_argument("session")
         if session_id:
             if session_id in self.sessions:
                 if self.sessions[session_id]['status'] not in ['success','failed']:
@@ -175,8 +175,9 @@ class StatusHandler(tornado.web.RequestHandler):
         self.sessions = sessions
 
     def get(self):
-        breakpoint = self.request.arguments.get("break", "none")
-        session_id = self.request.arguments.get("session")
+        print self.request.arguments
+
+        session_id = self.get_argument("session",default=None)
         self.set_header("Content-type", "application/json")
         if session_id:
             if session_id in self.sessions:
@@ -204,8 +205,8 @@ class ArtifactHandler(tornado.web.RequestHandler):
         self.working_dir = working_dir
 
     def get(self):
-        test_id = self.request.arguments.get("test")
-        filename = self.request.arguments.get("filename")
+        test_id = self.get_argument("test")
+        filename = self.get_argument("filename",None)
 
 
         # look for status.json (any test should have it)
