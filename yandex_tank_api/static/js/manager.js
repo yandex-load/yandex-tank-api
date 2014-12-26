@@ -17,6 +17,8 @@
         if ($scope.currentSession != null) {
           $scope.sessionStatus = data[$scope.currentSession].current_stage;
           return $scope.progress = _.indexOf(TEST_STAGES, $scope.sessionStatus);
+        } else {
+          return $scope.sessionStatus = void 0;
         }
       });
     };
@@ -35,16 +37,18 @@
       });
     };
     $scope.$watch("breakPoint", function() {
-      if (($scope.sessionStatus == null) || $scope.sessionStatus === 'finished') {
-        return $http.post("run?break=" + $scope.breakPoint, $scope.tankConfig).success(function(data) {
-          $scope.reply = data;
-          $scope.currentTest = data.test;
-          return $scope.currentSession = data.session;
-        });
-      } else {
-        return $http.get("run?break=" + $scope.breakPoint).success(function(data) {
-          return $scope.reply = data;
-        });
+      if ($scope.breakPoint != null) {
+        if (($scope.sessionStatus == null) || $scope.sessionStatus === 'finished') {
+          return $http.post("run?break=" + $scope.breakPoint, $scope.tankConfig).success(function(data) {
+            $scope.reply = data;
+            $scope.currentTest = data.test;
+            return $scope.currentSession = data.session;
+          });
+        } else {
+          return $http.get("run?break=" + $scope.breakPoint + "&session=" + $scope.currentSession).success(function(data) {
+            return $scope.reply = data;
+          });
+        }
       }
     });
     $scope.stopTest = function() {
