@@ -34,6 +34,13 @@
         return $scope.currentSession = data.session;
       });
     };
+    $scope.$watch("breakPoint", function() {
+      return $http.post("run?break=" + breakPoint, $scope.tankConfig).success(function(data) {
+        $scope.reply = data;
+        $scope.currentTest = data.test;
+        return $scope.currentSession = data.session;
+      });
+    });
     $scope.stopTest = function() {
       return $http.get("stop?session=" + $scope.currentSession).success(function(data) {
         return $scope.reply = data;

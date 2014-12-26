@@ -26,6 +26,12 @@ app.controller "TankManager", ($scope, $interval, $http, TEST_STAGES, _) ->
       $scope.currentTest = data.test
       $scope.currentSession = data.session
 
+  $scope.$watch "breakPoint", () ->
+    $http.post("run?break=#{breakPoint}", $scope.tankConfig).success (data) ->
+      $scope.reply = data
+      $scope.currentTest = data.test
+      $scope.currentSession = data.session
+
   $scope.stopTest = () ->
     $http.get("stop?session="+ $scope.currentSession).success (data) ->
       $scope.reply = data
