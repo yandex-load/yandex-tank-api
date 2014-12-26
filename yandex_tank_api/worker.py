@@ -234,5 +234,6 @@ def run(tank_queue,manager_queue,work_dir,session,test):
         Write tank status there
        
     """
+    os.chdir(work_dir)
     TankWorker(tank_queue,manager_queue,work_dir,session,test).perform_test()
     
