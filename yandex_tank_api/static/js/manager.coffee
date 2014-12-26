@@ -4,7 +4,7 @@ app.constant "TEST_STAGES", ['lock','init','configure','prepare','start','poll',
 app.constant "_", window._
 
 app.controller "TankManager", ($scope, $interval, $http, TEST_STAGES, _) ->
-  $scope.max_progress = TEST_STAGES.length
+  $scope.maxProgress = TEST_STAGES.length
   updateStatus = () ->
     $http.get("status").success (data) ->
       $scope.status = data
