@@ -183,7 +183,7 @@ class TankWorker:
 
         except KeyboardInterrupt:
             self.process_failure("Interrupted")
-
+            return
         except Exception:
             self.process_failure('Failed to obtain lock',dump_status=False)
             self.report_status(status='failed',retcode=retcode,dump_status=False)
