@@ -48,6 +48,15 @@ class RunHandler(tornado.web.RequestHandler):
             if s['test']==test_id:
                 conflict_session=s
 
+        # 400 if invalid breakpoint
+        if not breakpoint in common.test_stage_order:
+            self.set_status(400)
+            self.finish(json.dumps({'reason':'Invalid break point',
+                                    'hint':
+                                        {'breakpoints':common.test_stage_order}
+                                   }))
+            return
+
         # 409 if session with this test_id is already running
         if conflict_session is not None:
                 self.set_status(409)
