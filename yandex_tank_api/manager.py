@@ -141,6 +141,8 @@ class Manager(object):
                                                          tank_config=msg['config'],
                                                          first_break=msg['break']
                                                          )
+                   except KeyboardInterrupt:
+                       pass
                    except Exception as ex:
                        self.webserver_queue.put({'session':msg['session'],
                                                  'status':'failed',
