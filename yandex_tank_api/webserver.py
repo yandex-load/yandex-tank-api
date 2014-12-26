@@ -42,7 +42,7 @@ class RunHandler(tornado.web.RequestHandler):
         #Check existing sessions
         running_session=None
         conflict_session=None
-        for s in self.sessions:
+        for s in self.sessions.values():
             if s['status'] not in ['success','failed']:
                 running_session=s
             if s['test']==test_id:
@@ -224,7 +224,7 @@ class ArtifactHandler(tornado.web.RequestHandler):
             if os.path.exists(filepath):
                 file_size = os.stat(filepath)
 
-                if file_size > TRANSFER_SIZE_LIMIT and any(s['status'] not in ['success','failed'] for s in self.sessions):
+                if file_size > TRANSFER_SIZE_LIMIT and any(s['status'] not in ['success','failed'] for s in self.sessions.values()):
                     self.set_header("Content-type", "application/json")
                     self.set_status(503)
                     self.finish(json.dumps({
