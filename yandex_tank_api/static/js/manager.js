@@ -10,6 +10,7 @@
   app.controller("TankManager", function($scope, $interval, $http, TEST_STAGES, _) {
     var updateStatus;
     $scope.maxProgress = TEST_STAGES.length - 1;
+    $scope.stages = TEST_STAGES;
     updateStatus = function() {
       return $http.get("status").success(function(data) {
         $scope.status = data;

@@ -32,3 +32,6 @@ html(lang="en")
         button.btn.btn-default(ng-click="stopTest()") Stop test
       p
         progressbar.progress-striped.active(value="progress", max="maxProgress") {{!sessionStatus}}
+      p
+        .btn-group
+          label.btn.btn-primary(ng-repeat="stage in stages", ng-model="breakPoint", btn-radio="stage") {{!stage}}
