@@ -177,9 +177,8 @@ class TankWorker:
         """Perform the test sequence via TankCore"""
         retcode = 1
 
-        self.next_stage('lock',dump_status=False)
-
         try:
+            self.next_stage('lock',dump_status=False)
             self.core.get_lock(force=False)
         except Exception:
             self.process_failure('Failed to obtain lock',dump_status=False)
