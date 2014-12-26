@@ -3,13 +3,17 @@
 
   app = angular.module("ng-tank-manager", ['ui.ace']);
 
-  app.controller("TankManager", function($scope, $interval, $http) {
+  app.constant("TEST_STAGES", ['lock', 'init', 'configure', 'prepare', 'start', 'poll', 'end', 'postprocess', 'unlock', 'finish']);
+
+  app.controller("TankManager", function($scope, $interval, $http, TEST_STAGES) {
     var updateStatus;
+    $scope.max_progress = TEST_STAGES.length;
     updateStatus = function() {
       return $http.get("status").success(function(data) {
         $scope.status = data;
         if ($scope.current_session != null) {
-          return $scope.session_status = data[$scope.current_session].current_stage;
+          $scope.session_status = data[$scope.current_session].current_stage;
+          return $scope.progress = _.indexOf(TEST_STAGES, $scope.session_status);
         }
       });
     };
