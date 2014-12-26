@@ -46,7 +46,7 @@ setup(
     ]),
     packages=['yandex_tank_api'],
     package_dir={'yandex_tank_api': 'yandex_tank_api'},
-    package_data={'yandex_tank_api': ['yandex_tank_api/static/*', 'yandex_tank_api/templates/*']},
+    package_data={'yandex_tank_api': ['static/*', 'templates/*']},
     scripts=['scripts/yandex-tank-api-server'],
 
     test_suite='yandex-tank-api'
