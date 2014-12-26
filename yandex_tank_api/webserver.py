@@ -287,7 +287,7 @@ class ApiServer(object):
                 (r"/stop", StopHandler, handler_params),
                 (r"/status", StatusHandler, handler_params),
                 (r"/artifact", ArtifactHandler, handler_params),
-                (r"/manager\.html$", StaticHandler, {"temlate": "manager.jade"})
+                (r"/manager\.html$", StaticHandler, {"template": "manager.jade"})
             ],
             template_path=os.path.join(os.path.dirname(__file__), "templates"),
             static_path=os.path.join(os.path.dirname(__file__), "static"),
