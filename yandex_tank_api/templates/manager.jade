@@ -33,5 +33,5 @@ html(lang="en")
       p
         progressbar.progress-striped.active(value="progress", max="maxProgress") {{!sessionStatus}}
       .btn-group
-        label.btn.btn-primary(ng-repeat="stage in stages", ng-model="breakPoint", btn-radio="'{{!stage}}'") {{!stage}}
+        label.btn.btn-primary(ng-repeat="stage in stages", ng-model="$parent.breakPoint", btn-radio="stage") {{!stage}}
       p {{!breakPoint}}
