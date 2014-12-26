@@ -35,13 +35,15 @@ class TankWorker:
 
     IGNORE_LOCKS = "ignore_locks"
 
-    def __init__(self, tank_queue, manager_queue, working_dir):
+    def __init__(self, tank_queue, manager_queue, working_dir,session,test):
         
         #Parameters from manager
         self.tank_queue=tank_queue
         self.manager_queue=manager_queue
         self.working_dir = working_dir
-
+        self.session = session
+        self.test = test
+ 
         #State variables
         self.break_at='lock'
         self.stage='started' #Not reported anywhere to anybody
@@ -133,6 +135,8 @@ class TankWorker:
     def report_status(self,status='running',retcode=None,dump_status=True):
         """Report status to manager and dump status.json, if required"""
         msg={'status':status,
+             'session':self.session,
+             'test':self.test,
              'current_stage':self.stage,
              'break':self.break_at,
              'failures':self.failures}
@@ -140,7 +144,7 @@ class TankWorker:
             msg['retcode']=retcode
         self.manager_queue.put(msg)
         if dump_status:
-            json.dump(msg,open(os.path.join(self.working_dir,'status.json')),indent=4)
+            json.dump(msg,open(os.path.join(self.working_dir,'status.json'),'w'),indent=4)
  
     def failure(self,reason,dump_status=True):
         """Report a failure in the current stage"""
@@ -222,7 +226,7 @@ class TankWorker:
         self.log.info("Done performing test with code %s", retcode)
 
 
-def run(tank_queue,manager_queue,work_dir):
+def run(tank_queue,manager_queue,work_dir,session,test):
     """
     Target for tank process.
     This is the only function from this module ever used by Manager.
@@ -234,5 +238,5 @@ def run(tank_queue,manager_queue,work_dir):
         Write tank status there
        
     """
-    TankWorker(tank_queue,manager_queue,work_dir).perform_test()
+    TankWorker(tank_queue,manager_queue,work_dir,session,test).perform_test()
     

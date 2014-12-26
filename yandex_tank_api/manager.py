@@ -3,7 +3,7 @@ import os.path
 import errno
 import multiprocessing
 import logging
-
+import traceback
 import json
 
 import common
@@ -17,6 +17,7 @@ class TankRunner(object):
     def __init__(self,
                  cfg,
                  manager_queue,
+                 session,
                  test_id,
                  tank_config,
                  first_break='lock'):
@@ -27,7 +28,7 @@ class TankRunner(object):
         self.log = logging.getLogger(__name__)
 
         #Create the working directory if necessary and check that the test was not run yet
-        work_dir=cfg['tests-dir']+'/'+test_id
+        work_dir=cfg['tests_dir']+'/'+test_id
         try:
             os.makedirs(work_dir)
         except OSError as err:
@@ -46,7 +47,7 @@ class TankRunner(object):
         self.set_break(first_break)
 
         #Start tank process
-        self.tank_process=multiprocessing.Process(target=worker.run,args=(self.tank_queue,manager_queue,work_dir))
+        self.tank_process=multiprocessing.Process(target=worker.run,args=(self.tank_queue,manager_queue,work_dir,session,test_id))
         self.tank_process.start()
 
     def set_break(self,next_break):
@@ -99,12 +100,6 @@ class Manager(object):
         self.tank_runner=None
         self.last_tank_status='not started'
 
-    def forward_status(self,status):
-        """Add session and test to the specified status and send it to webserver"""
-        fwd={'session':str(self.session),'test':str(self.test)}
-        fwd.update(status)
-        self.webserver_queue.put(fwd)
-
     def manage_tank(self,msg):
         """Process command from webserver"""
 
@@ -141,6 +136,7 @@ class Manager(object):
                    try:
                        self.tank_runner=self.TankRunner(cfg=self.cfg,
                                                          manager_queue=self.manager_queue,
+                                                         session=self.session,
                                                          test_id=self.test,
                                                          tank_config=msg['config'],
                                                          first_break=msg['break']
@@ -150,7 +146,7 @@ class Manager(object):
                                                  'status':'failed',
                                                  'test':self.test,
                                                  'break':msg['break'],
-                                                 'reason':'Failed to start tank: '+str(ex)})
+                                                 'reason':'Failed to start tank:\n'+traceback.format_exc(ex) })
 
 
            return
@@ -172,7 +168,11 @@ class Manager(object):
                     #Tank exit
                     if self.last_tank_status=='running' or self.tank_runner.get_exitcode() !=0:
                         #Unexpected exit
-                        self.forward_status({'status':'failed','reason':'Tank died unexpectedly'})
+                        self.webserver_queue.put({'session':self.session,
+                                                  'test':self.test,
+                                                  'status':'failed',
+                                                  'break':'finished',
+                                                  'reason':'Tank died unexpectedly'})
                     self.reset_session()
                 else:
                     #No messages. Either no session or tank is just quietly doing something
@@ -187,7 +187,7 @@ class Manager(object):
             elif 'status' in msg:
                 #This is a status message from tank
                 self.last_tank_status=msg['status']
-                self.forward_status(msg)
+                self.webserver_queue.put(msg)
             else:
                 logging.error("Strange message (not a command and not a status) ")
 

@@ -17,6 +17,8 @@ Commands from HTTP Server (from manager_queue):
 
 Status reported by tank (from manager_queue):
     {
+     'session': '1a2b4f3c'
+     'test': 'DEATHSTAR-10-12345'
      'status': 'running'|'success'|'failure'
      'current_stage': --- current stage (from test_stage_order)
      'break': --- stage to make a break before
