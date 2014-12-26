@@ -3,6 +3,9 @@
 import logging
 import tornado.ioloop
 import tornado.web
+from pyjade.ext.tornado import patch_tornado
+patch_tornado()
+
 import os.path
 import os
 import json
@@ -12,9 +15,6 @@ import multiprocessing
 import common
 
 from tornado import template
-
-#from pyjade.ext.tornado import patch_tornado
-#patch_tornado()
 
 
 # TODO: make it configurable
