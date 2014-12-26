@@ -3,7 +3,7 @@
 
   app = angular.module("ng-tank-manager", ['ui.ace', 'ui.bootstrap']);
 
-  app.constant("TEST_STAGES", ['lock', 'init', 'configure', 'prepare', 'start', 'poll', 'end', 'postprocess', 'unlock', 'finish']);
+  app.constant("TEST_STAGES", ['lock', 'init', 'configure', 'prepare', 'start', 'poll', 'end', 'postprocess', 'unlock', 'finished']);
 
   app.constant("_", window._);
 
@@ -35,11 +35,17 @@
       });
     };
     $scope.$watch("breakPoint", function() {
-      return $http.post("run?break=" + breakPoint, $scope.tankConfig).success(function(data) {
-        $scope.reply = data;
-        $scope.currentTest = data.test;
-        return $scope.currentSession = data.session;
-      });
+      if (($scope.sessionStatus == null) || $scope.sessionStatus === 'finished') {
+        return $http.post("run?break=" + $scope.breakPoint, $scope.tankConfig).success(function(data) {
+          $scope.reply = data;
+          $scope.currentTest = data.test;
+          return $scope.currentSession = data.session;
+        });
+      } else {
+        return $http.get("run?break=" + $scope.breakPoint).success(function(data) {
+          return $scope.reply = data;
+        });
+      }
     });
     $scope.stopTest = function() {
       return $http.get("stop?session=" + $scope.currentSession).success(function(data) {
