@@ -173,7 +173,6 @@ class Manager(object):
                         self.webserver_queue.put({'session':self.session,
                                                   'test':self.test,
                                                   'status':'failed',
-                                                  'break':'finished',
                                                   'reason':'Tank died unexpectedly'})
                     self.reset_session()
                 else:
