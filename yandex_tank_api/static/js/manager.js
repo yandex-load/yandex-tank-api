@@ -45,7 +45,7 @@
             return $scope.currentSession = data.session;
           });
         } else {
-          return $http.get("run?break=" + $scope.breakPoint).success(function(data) {
+          return $http.get("run?break=" + $scope.breakPoint + "&session=" + $scope.currentSession).success(function(data) {
             return $scope.reply = data;
           });
         }

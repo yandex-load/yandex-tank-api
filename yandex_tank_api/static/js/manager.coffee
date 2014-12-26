@@ -36,7 +36,7 @@ app.controller "TankManager", ($scope, $interval, $http, TEST_STAGES, _) ->
           $scope.currentTest = data.test
           $scope.currentSession = data.session
       else
-        $http.get("run?break=#{$scope.breakPoint}").success (data) ->
+        $http.get("run?break=#{$scope.breakPoint}&session=#{$scope.currentSession}").success (data) ->
           $scope.reply = data
 
   $scope.stopTest = () ->
