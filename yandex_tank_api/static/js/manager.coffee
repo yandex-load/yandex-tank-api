@@ -5,4 +5,9 @@ app.controller "TankManager", ($scope, $interval, $http) ->
     $http.get("status").success (data) ->
       $scope.status = data
 
+  runTest = () ->
+    $http.post("run", $scope.tankConfig).success (data) ->
+      $scope.reply = data
+      console.log(data)
+
   $interval(updateStatus, 1000)

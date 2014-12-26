@@ -21,4 +21,6 @@ html(lang="en")
     .app.container(ng-app="ng-tank-manager", ng-controller="TankManager")
       h1.page-header Yandex.Tank management console
       #status {{!status}}
+      #reply {{!reply}}
       .tank-config(ui-ace, ng-model="tankConfig")
+      button.btn.btn-warning(ng-click="runTest()") Run test
