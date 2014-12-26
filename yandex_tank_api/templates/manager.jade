@@ -22,5 +22,11 @@ html(lang="en")
       h1.page-header Yandex.Tank management console
       #status {{!status}}
       #reply {{!reply}}
-      .tank-config(ui-ace, ng-model="tankConfig")
-      button.btn.btn-warning(ng-click="runTest()") Run test
+      p
+        .tank-config(ui-ace, ng-model="tankConfig")
+      p
+        button.btn.btn-warning(ng-click="runTest()") Run test
+        span &nbsp;
+        button.btn.btn-default(ng-click="stopTest()") Stop test
+      p
+        #state {{!session_status}}
