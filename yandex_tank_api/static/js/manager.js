@@ -5,7 +5,9 @@
 
   app.constant("TEST_STAGES", ['lock', 'init', 'configure', 'prepare', 'start', 'poll', 'end', 'postprocess', 'unlock', 'finish']);
 
-  app.controller("TankManager", function($scope, $interval, $http, TEST_STAGES) {
+  app.constant("_", window._);
+
+  app.controller("TankManager", function($scope, $interval, $http, TEST_STAGES, _) {
     var updateStatus;
     $scope.max_progress = TEST_STAGES.length;
     updateStatus = function() {

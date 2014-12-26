@@ -1,9 +1,9 @@
 app = angular.module("ng-tank-manager", ['ui.ace', 'ui.bootstrap'])
 
 app.constant "TEST_STAGES", ['lock','init','configure','prepare','start','poll','end','postprocess','unlock','finish']
+app.constant "_", window._
 
-
-app.controller "TankManager", ($scope, $interval, $http, TEST_STAGES) ->
+app.controller "TankManager", ($scope, $interval, $http, TEST_STAGES, _) ->
   $scope.max_progress = TEST_STAGES.length
   updateStatus = () ->
     $http.get("status").success (data) ->
