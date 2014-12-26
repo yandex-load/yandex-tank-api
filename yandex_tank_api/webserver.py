@@ -262,6 +262,14 @@ class ArtifactHandler(tornado.web.RequestHandler):
             self.finish(json.dumps(onlyfiles))
 
 
+class StaticHandler(tornado.web.RequestHandler):
+    def initialize(self, template):
+        self.template = template
+
+    def get(self):
+        self.render(self.template)
+
+
 class ApiServer(object):
     def __init__(self, in_queue, out_queue, working_dir):
         self.in_queue = in_queue
@@ -279,6 +287,7 @@ class ApiServer(object):
                 (r"/stop", StopHandler, handler_params),
                 (r"/status", StatusHandler, handler_params),
                 (r"/artifact", ArtifactHandler, handler_params),
+                (r"/manager\.html$", StaticHandler, {"temlate": "manager.jade"})
             ],
             template_path=os.path.join(os.path.dirname(__file__), "templates"),
             static_path=os.path.join(os.path.dirname(__file__), "static"),
