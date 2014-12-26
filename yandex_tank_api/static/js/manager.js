@@ -20,6 +20,13 @@
         }
       });
     };
+    $scope.btnEnabled = function(stage) {
+      var brpIdx, btnIdx, ssnIdx;
+      btnIdx = _.indexOf(TEST_STAGES, stage);
+      ssnIdx = _.indexOf(TEST_STAGES, $scope.sessionStatus);
+      brpIdx = _.indexOf(TEST_STAGES, $scope.breakPoint);
+      return btnIdx > ssnIdx && btnIdx >= brpIdx;
+    };
     $scope.runTest = function() {
       return $http.post("run", $scope.tankConfig).success(function(data) {
         $scope.reply = data;

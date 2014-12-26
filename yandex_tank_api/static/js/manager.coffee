@@ -13,6 +13,12 @@ app.controller "TankManager", ($scope, $interval, $http, TEST_STAGES, _) ->
         $scope.sessionStatus = data[$scope.currentSession].current_stage
         $scope.progress = _.indexOf(TEST_STAGES, $scope.sessionStatus)
 
+  $scope.btnEnabled = (stage) ->
+    btnIdx = _.indexOf(TEST_STAGES, stage)
+    ssnIdx = _.indexOf(TEST_STAGES, $scope.sessionStatus)
+    brpIdx = _.indexOf(TEST_STAGES, $scope.breakPoint)
+    return btnIdx > ssnIdx and btnIdx >= brpIdx
+
   $scope.runTest = () ->
     $http.post("run", $scope.tankConfig).success (data) ->
       $scope.reply = data
