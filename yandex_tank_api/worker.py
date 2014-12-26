@@ -15,7 +15,7 @@ import json
 #Yandex.Tank modules
 #TODO: split yandex-tank and make python-way install
 sys.path.append('/usr/lib/yandex-tank')
-import tankcore.TankCore
+import tankcore
 
 #Yandex.Tank.Api modules
 

@@ -12,8 +12,9 @@ import multiprocessing
 import common
 
 from tornado import template
-from pyjade.ext.tornado import patch_tornado
-patch_tornado()
+
+#from pyjade.ext.tornado import patch_tornado
+#patch_tornado()
 
 
 # TODO: make it configurable

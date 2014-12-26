@@ -2,4 +2,4 @@
 import yandex_tank_api.manager
 
 if __name__=='__main__':
-    yandex_tank_api.manager.run()
+    yandex_tank_api.manager.run_server()
