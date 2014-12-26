@@ -46,7 +46,7 @@ class TankWorker:
  
         #State variables
         self.break_at='lock'
-        self.stage='started' #Not reported anywhere to anybody
+        self.stage='not started' #Not reported anywhere to anybody
         self.failures=[]
 
         self.log = logging.getLogger(__name__)
@@ -183,6 +183,7 @@ class TankWorker:
 
         except KeyboardInterrupt:
             self.process_failure("Interrupted")
+            self.report_status(status='failed',retcode=retcode,dump_status=False)
             return
         except Exception:
             self.process_failure('Failed to obtain lock',dump_status=False)
