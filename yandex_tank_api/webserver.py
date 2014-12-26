@@ -33,7 +33,7 @@ class RunHandler(tornado.web.RequestHandler):
     def post(self):
 
         test_id = self.get_argument("test", uuid.uuid4().hex)
-        breakpoint = self.get_argument("break", "finish")
+        breakpoint = self.get_argument("break", "finished")
         session_id = uuid.uuid4().hex
         config = self.request.body
 
@@ -96,7 +96,7 @@ class RunHandler(tornado.web.RequestHandler):
                                }))
 
     def get(self):
-        breakpoint = self.get_argument("break", "finish")
+        breakpoint = self.get_argument("break", "finished")
         session_id = self.get_argument("session")
         self.set_header("Content-type", "application/json")
 

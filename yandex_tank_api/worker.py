@@ -158,7 +158,7 @@ class TankWorker:
         self.log.error("Failure in stage %s:\n%s",self.stage,reason)
         self.failures.append({'stage':self.stage,'reason':reason})
         self.report_status(dump_status=dump_status)
-        self.break_at='finish'
+        self.break_at='finished'
 
     def set_stage(self,stage,status='running',dump_status=True):
         """Unconditionally switch stage and report status to manager"""
@@ -180,6 +180,10 @@ class TankWorker:
         try:
             self.next_stage('lock',dump_status=False)
             self.core.get_lock(force=False)
+
+        except KeyboardInterrupt:
+            self.process_failure("Interrupted")
+
         except Exception:
             self.process_failure('Failed to obtain lock',dump_status=False)
             self.report_status(status='failed',retcode=retcode,dump_status=False)
@@ -230,7 +234,7 @@ class TankWorker:
                     self.process_failure("Exception while waiting for permission to unlock:" + traceback.format_exc(ex) )
                                  
                 self.core.release_lock()
-                self.set_stage('finish')
+                self.set_stage('finished')
                 self.report_status(status='failed' if self.failures else 'success',
                                    retcode=retcode)
         self.log.info("Done performing test with code %s", retcode)

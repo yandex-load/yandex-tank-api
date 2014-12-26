@@ -179,7 +179,7 @@ class Manager(object):
                        self.webserver_queue.put({'session':self.session,
                                                   'test':self.test,
                                                   'status':'failed',
-                                                  'reason':'Tank died unexpectedly'})
+                                                  'reason':'Tank died unexpectedly. Last reported status: {0}, worker exitcode: {1} '.format(self.last_tank_status,self.tank_runner.get_exitcode())})
                    # In any case, reset the session
                    self.reset_session()
                    handle_tank_exit=False
@@ -205,7 +205,7 @@ class Manager(object):
                 self.last_tank_status=msg['status']
                 self.webserver_queue.put(msg)
             else:
-                logging.error("Strange message (not a command and not a status) ")
+                self.log.error("Strange message (not a command and not a status) ")
 
 
 def run_server():
@@ -215,7 +215,8 @@ def run_server():
     #TODO: un-hardcode cfg
     cfg={'tank_check_interval':1.0,
          'tests_dir':'/var/lib/yandex-tank-api/tests'}
-    #TODO: setup logging
+    #TODO: really setup logging
+    logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s: %(message)s")
 
     #TODO: daemonize
 
