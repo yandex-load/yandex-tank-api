@@ -11,7 +11,7 @@ if version < '2.2.3':
     DistributionMetadata.classifiers = None
     DistributionMetadata.download_url = None
 
-from yandex-tank-api import __version__ as version
+from yandex_tank_api import __version__ as version
 
 def requireModules(moduleNames=None):
     import re
@@ -44,7 +44,8 @@ setup(
     install_requires=requireModules([
 
     ]),
-    entry_points={'console-scripts':['yandex-tank-api.manager:run']},
+    packages=['yandex_tank_api'],
+    scripts=['scripts/yandex-tank-api-server'],
 
     test_suite='yandex-tank-api'
 )
