@@ -118,7 +118,7 @@ class RunHandler(tornado.web.RequestHandler):
             reply={'reason':'I am a teapot! I know nothing of time-travel!',
                     'hint': {'breakpoints':common.test_stage_order} }
             reply.update(status_dict)
-            self.set_status(418)
+            self.set_status(418,reason="I'm a teapot!")
             self.finish(json.dumps(reply))
             return
 
