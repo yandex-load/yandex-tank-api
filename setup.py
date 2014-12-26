@@ -22,7 +22,7 @@ def requireModules(moduleNames=None):
 
     commentPattern = re.compile(r'^\w*?#')
     moduleNames.extend(
-        filter(lambda line: not commentPattern.match(line), 
+        filter(lambda line: not commentPattern.match(line),
             open('requirements.txt').readlines()))
 
     return moduleNames
@@ -45,6 +45,8 @@ setup(
 
     ]),
     packages=['yandex_tank_api'],
+    package_dir={'yandex_tank_api': 'yandex_tank_api'},
+    package_data={'yandex_tank_api': ['yandex_tank_api/static/*', 'yandex_tank_api/templates/*']},
     scripts=['scripts/yandex-tank-api-server'],
 
     test_suite='yandex-tank-api'
