@@ -20,7 +20,7 @@ class TankRunner(object):
                  session,
                  test_id,
                  tank_config,
-                 first_break='lock'):
+                 first_break):
         """
         Sets up working directory and tank queue
         Starts tank process
@@ -62,6 +62,9 @@ class TankRunner(object):
         """Return tank exitcode"""
         return self.tank_process.exitcode
 
+    def join(self):
+        """Joins the tank process"""
+        return self.tank_process.join()
 
     def stop(self):
         """Terminates the tank process"""
@@ -95,6 +98,7 @@ class Manager(object):
         Resets session state variables
         Should be called only when tank is not running
         """
+        self.log.info("Resetting current session variables")
         self.session=None
         self.test=None
         self.tank_runner=None
@@ -201,14 +205,24 @@ class Manager(object):
                 #Recieved command from server
                 self.manage_tank(msg)
             elif 'status' in msg:
-                #This is a status message from tank
+                # This is a status message from tank
+                
+                new_status=msg['status']
+                # Check for transition from running to stopped 
+                if self.last_tank_status not in ['success','failed'] \
+                              and new_status in ['success','failed']:
+                    self.log.info("Waiting for tank exit...")
+                    self.tank_runner.join()
+                    self.reset_session()
+                
                 self.last_tank_status=msg['status']
+                # Notify webserver
                 self.webserver_queue.put(msg)
             else:
                 self.log.error("Strange message (not a command and not a status) ")
 
 
-def run_server():
+def run_server(options):
     """Runs the whole yandex-tank-api server """
 
     #Configure
@@ -225,7 +239,7 @@ def run_server():
     webserver_queue=multiprocessing.Queue()
 
     #Fork webserver
-    webserver_process=multiprocessing.Process(target=webserver.main,args=(webserver_queue,manager_queue,cfg['tests_dir']))
+    webserver_process=multiprocessing.Process(target=webserver.main,args=(webserver_queue,manager_queue,cfg['tests_dir'],options.debug))
     webserver_process.start()
 
     #Run
