@@ -240,7 +240,7 @@ class TankWorker:
                 self.core.release_lock()
                 self.set_stage('finished',stage_completed=True)
                 self.report_status(status='failed' if self.failures else 'success',
-                                   retcode=retcode)
+                                   retcode=retcode,stage_completed=True)
         self.log.info("Done performing test with code %s", retcode)
 
 
