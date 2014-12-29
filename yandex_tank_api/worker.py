@@ -46,7 +46,7 @@ class TankWorker:
  
         #State variables
         self.break_at='lock'
-        self.stage='not started' #Not reported anywhere to anybody
+        self.stage='not started'
         self.failures=[]
 
         reload(logging)
@@ -134,12 +134,13 @@ class TankWorker:
                 self.break_at=br
                 return
 
-    def report_status(self,status='running',retcode=None,dump_status=True):
+    def report_status(self,status='running',retcode=None,dump_status=True,stage_completed=False):
         """Report status to manager and dump status.json, if required"""
         msg={'status':status,
              'session':self.session,
              'test':self.test,
              'current_stage':self.stage,
+             'stage_completed':stage_completed,
              'break':self.break_at,
              'failures':self.failures}
         if retcode is not None:
@@ -166,7 +167,9 @@ class TankWorker:
         self.report_status(status,dump_status=dump_status)
        
     def next_stage(self,stage,dump_status=True):
-        """Switch to next test stage if allowed"""
+        """Report stage completion and switch to the next test stage if allowed"""
+
+        self.report_status('running',dump_status=dump_status,stage_completed=True)
         while not common.is_A_earlier_than_B(stage,self.break_at):
             #We have reached the set break
             #Waiting until another, later, break is set by manager
