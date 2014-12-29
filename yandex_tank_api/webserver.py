@@ -20,6 +20,39 @@ from tornado import template
 # TODO: make it configurable
 TRANSFER_SIZE_LIMIT = 128 * 1024
 
+class APIHandler(tornado.web.RequestHandler):
+    """
+    Parent class for API handlers
+    """
+    def initialize(self, out_queue, sessions, working_dir):
+        """
+        sessions
+            dict: session_id->session_status
+        """
+        self.out_queue = out_queue
+        self.sessions = sessions
+        self.working_dir = working_dir
+
+    def reply_json(self,reply):
+        self.set_header('Content-Type', 'application/json')
+        self.finish(json.dumps(reply,indent=4))
+
+    def write_error(self,status_code, **kwargs):
+        if self.settings.get("debug"):
+            tornado.web.RequestHandler(self,status_code, **kwargs)
+            return
+
+        self.set_header('Content-Type', 'application/json')
+        if 'exc_info' in kwargs and status_code>=400 and status_code<500:
+            self.reply_json({'code':status_code,
+                              'reason':str(kwargs['exc_info'][1])
+                            })
+        else:
+            self.reply_json({'code':status_code,
+                              'reason':self._reason
+                            }) 
+
+
 class RunHandler(tornado.web.RequestHandler):
     def initialize(self, out_queue, sessions, working_dir):
         """
@@ -49,11 +82,11 @@ class RunHandler(tornado.web.RequestHandler):
                 conflict_session=s
 
         # 400 if invalid breakpoint
-        if not breakpoint in common.test_stage_order:
+        if not common.is_valid_break(breakpoint):
             self.set_status(400)
             self.finish(json.dumps({'reason':'Invalid break point',
                                     'hint':
-                                        {'breakpoints':common.test_stage_order}
+                                        {'breakpoints':common.get_valid_breaks()}
                                    }))
             return
 
@@ -73,7 +106,7 @@ class RunHandler(tornado.web.RequestHandler):
 
         # 503 if any running session exists (but no test_id conflict)
         if running_session is not None:
-                self.set_status(503)
+                self.set_status(503,"Another session already running.")
                 self.finish(json.dumps(running_session))
                 return
 
@@ -101,11 +134,11 @@ class RunHandler(tornado.web.RequestHandler):
         self.set_header("Content-type", "application/json")
 
         # 400 if invalid breakpoint
-        if not breakpoint in common.test_stage_order:
+        if not common.is_valid_break(breakpoint):
             self.set_status(400)
             self.finish(json.dumps({'reason':'Invalid break point',
                                     'hint':
-                                        {'breakpoints':common.test_stage_order}
+                                        {'breakpoints':common.get_valid_breaks()}
                                    }))
             return
 
@@ -125,7 +158,7 @@ class RunHandler(tornado.web.RequestHandler):
         # 418 if in higher state or not running
         if status_dict['status'] == 'success' or common.is_A_earlier_than_B(breakpoint,status_dict['break']):
             reply={'reason':'I am a teapot! I know nothing of time-travel!',
-                    'hint': {'breakpoints':common.test_stage_order} }
+                    'hint': {'breakpoints':common.get_valid_breaks()} }
             reply.update(status_dict)
             self.set_status(418,reason="I'm a teapot!")
             self.finish(json.dumps(reply))
@@ -136,7 +169,7 @@ class RunHandler(tornado.web.RequestHandler):
                        'cmd':'run',
                        'break':breakpoint})
 
-        self.set_status(200)
+        self.set_status(200,"Will try to set break before "+breakpoint)
 
 class StopHandler(tornado.web.RequestHandler):
     def initialize(self, out_queue, sessions, working_dir):
@@ -217,13 +250,22 @@ class ArtifactHandler(tornado.web.RequestHandler):
         test_id = self.get_argument("test")
         filename = self.get_argument("filename",None)
 
-
-        # look for status.json (any test should have it)
-        if not os.path.exists(os.path.join(self.working_dir, test_id, 'status.json')):
+        # look for test directory
+        if not os.path.exists(os.path.join(self.working_dir, test_id)):
             self.set_header("Content-type", "application/json")
             self.set_status(404)
             self.finish(json.dumps({
                 'reason': 'No test with this ID found',
+                'test': test_id,
+            }))
+            return
+
+        # look for status.json (any test that went past lock stage should have it)
+        if not os.path.exists(os.path.join(self.working_dir, test_id, 'status.json')):
+            self.set_header("Content-type", "application/json")
+            self.set_status(404)
+            self.finish(json.dumps({
+                'reason': 'Test was not performed, no artifacts.',
                 'test': test_id,
             }))
             return
@@ -280,7 +322,7 @@ class StaticHandler(tornado.web.RequestHandler):
 
 
 class ApiServer(object):
-    def __init__(self, in_queue, out_queue, working_dir):
+    def __init__(self, in_queue, out_queue, working_dir, debug=False):
         self.in_queue = in_queue
         self.out_queue = out_queue
         self.working_dir = working_dir
@@ -300,7 +342,7 @@ class ApiServer(object):
             ],
             template_path=os.path.join(os.path.dirname(__file__), "templates"),
             static_path=os.path.join(os.path.dirname(__file__), "static"),
-            debug=True,
+            debug=debug,
         )
 
     def update_status(self):
@@ -321,8 +363,7 @@ class ApiServer(object):
         update_cb.start()
         ioloop.start()
 
-
-def main(webserver_queue, manager_queue, test_directory):
+def main(webserver_queue, manager_queue, test_directory, debug):
     """Target for webserver process.
     The only function ever used by the Manager.
 
@@ -336,4 +377,4 @@ def main(webserver_queue, manager_queue, test_directory):
         Directory where tests are
 
     """
-    ApiServer(webserver_queue, manager_queue, test_directory).serve()
+    ApiServer(webserver_queue, manager_queue, test_directory, debug).serve()
