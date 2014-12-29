@@ -56,6 +56,8 @@ setup(
         'static/js/vendor/*.js',
     ]},
     scripts=['scripts/yandex-tank-api-server'],
-
+    data_files=[('/var/lib/yandex-tank-api/stpd-cache', []),
+                ('/etc/yandex-tank-api/defaults', ['tank_configs/00-tank-api-defaults.ini']),
+                ('/etc/yandex-tank-api/override',['tank_configs/99-tank-api-override.ini'])],
     test_suite='yandex-tank-api'
 )
