@@ -231,7 +231,7 @@ class ArtifactHandler(tornado.web.RequestHandler):
         if filename:
             filepath = os.path.join(self.working_dir, test_id, filename)
             if os.path.exists(filepath):
-                file_size = os.stat(filepath)
+                file_size = os.stat(filepath).st_size
 
                 if file_size > TRANSFER_SIZE_LIMIT and any(s['status'] not in ['success','failed'] for s in self.sessions.values()):
                     self.set_header("Content-type", "application/json")
