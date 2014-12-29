@@ -33,7 +33,11 @@ class APIHandler(tornado.web.RequestHandler):
         self.sessions = sessions
         self.working_dir = working_dir
 
-    def reply_json(self,reply):
+    def reply_json(self,status_code,reply):
+        if status_code!=418:
+            self.set_status(status_code)
+        else:
+            self.set_status(status_code,'I\'m a teapot!')
         self.set_header('Content-Type', 'application/json')
         self.finish(json.dumps(reply,indent=4))
 
@@ -44,24 +48,12 @@ class APIHandler(tornado.web.RequestHandler):
 
         self.set_header('Content-Type', 'application/json')
         if 'exc_info' in kwargs and status_code>=400 and status_code<500:
-            self.reply_json({'code':status_code,
-                              'reason':str(kwargs['exc_info'][1])
-                            })
+            self.reply_json(status_code,{'reason':str(kwargs['exc_info'][1]) })
         else:
-            self.reply_json({'code':status_code,
-                              'reason':self._reason
-                            }) 
+            self.reply_json(status_code,{'reason':self._reason}) 
 
 
-class RunHandler(tornado.web.RequestHandler):
-    def initialize(self, out_queue, sessions, working_dir):
-        """
-        sessions
-            dict: session_id->session_status
-        """
-        self.out_queue = out_queue
-        self.sessions = sessions
-        self.working_dir = working_dir
+class RunHandler(APIHandler):
 
     def post(self):
 
@@ -69,8 +61,6 @@ class RunHandler(tornado.web.RequestHandler):
         breakpoint = self.get_argument("break", "finished")
         session_id = uuid.uuid4().hex
         config = self.request.body
-
-        self.set_header("Content-type", "application/json")
 
         #Check existing sessions
         running_session=None
@@ -83,32 +73,30 @@ class RunHandler(tornado.web.RequestHandler):
 
         # 400 if invalid breakpoint
         if not common.is_valid_break(breakpoint):
-            self.set_status(400)
-            self.finish(json.dumps({'reason':'Invalid break point',
-                                    'hint':
-                                        {'breakpoints':common.get_valid_breaks()}
-                                   }))
+            self.reply_json(400,
+                            {'reason':'Invalid break point',
+                             'hint':{'breakpoints':common.get_valid_breaks()}
+                            }
+                           )
             return
 
         # 409 if session with this test_id is already running
         if conflict_session is not None:
-                self.set_status(409)
-                self.finish(json.dumps(conflict_session))
-                return
+            self.reply_json(409,{'reason':'Session with this ID is already running'}.update(conflict_session))
+            return
 
         # 409 if finished test with this test_id exists
         test_status_file=os.path.join(self.working_dir, test_id, 'status.json')
         if os.path.exists(test_status_file):
-            self.set_status(409)
-            self.finish(open(test_status_file).read())
+            status=json.load(open(test_status_file))
+            self.reply_json(409,{'reason':'Session with this ID has already finished'}.update(status))
             return
 
 
         # 503 if any running session exists (but no test_id conflict)
         if running_session is not None:
-                self.set_status(503,"Another session already running.")
-                self.finish(json.dumps(running_session))
-                return
+            self.reply_json(503,{'reason':"Another session already running."}.update(running_session))
+            return
 
         #Remember that such session exists
         self.sessions[session_id]={'status':'starting',
@@ -122,11 +110,10 @@ class RunHandler(tornado.web.RequestHandler):
                        'test':test_id,
                        'config':config})
 
-        self.set_status(200)
-        self.finish(json.dumps({
+        self.reply_json(200,{
                                "test": test_id,
                                "session": session_id,
-                               }))
+                               })
 
     def get(self):
         breakpoint = self.get_argument("break", "finished")
@@ -135,24 +122,21 @@ class RunHandler(tornado.web.RequestHandler):
 
         # 400 if invalid breakpoint
         if not common.is_valid_break(breakpoint):
-            self.set_status(400)
-            self.finish(json.dumps({'reason':'Invalid break point',
+            self.reply_json(400,{'reason':'Invalid break point',
                                     'hint':
                                         {'breakpoints':common.get_valid_breaks()}
-                                   }))
+                                   })
             return
 
         # 404 if no such session
         if not session_id in self.sessions:
-            self.set_status(404)
-            self.finish(json.dumps({'reason':'No session with this ID'}))
+            self.reply_json(404,{'reason':'No session with this ID'})
             return
         status_dict=self.sessions[session_id]
 
         # 500 if failed
         if status_dict['status'] == 'failed':
-            self.set_status(500)
-            self.finish(json.dumps(status_dict))
+            self.reply_json(500,status_dict)
             return
 
         # 418 if in higher state or not running
@@ -160,8 +144,7 @@ class RunHandler(tornado.web.RequestHandler):
             reply={'reason':'I am a teapot! I know nothing of time-travel!',
                     'hint': {'breakpoints':common.get_valid_breaks()} }
             reply.update(status_dict)
-            self.set_status(418,reason="I'm a teapot!")
-            self.finish(json.dumps(reply))
+            self.reply_json(418,reply)
             return
 
         # Post run command to manager queue
@@ -169,82 +152,51 @@ class RunHandler(tornado.web.RequestHandler):
                        'cmd':'run',
                        'break':breakpoint})
 
-        self.set_status(200,"Will try to set break before "+breakpoint)
+        self.reply_json(200,{'reason':"Will try to set break before "+breakpoint})
 
-class StopHandler(tornado.web.RequestHandler):
-    def initialize(self, out_queue, sessions, working_dir):
-        self.out_queue = out_queue
-        self.sessions = sessions
+class StopHandler(APIHandler):
 
     def get(self):
         session_id = self.get_argument("session")
-        if session_id:
-            if session_id in self.sessions:
+        if session_id in self.sessions:
                 if self.sessions[session_id]['status'] not in ['success','failed']:
                     self.out_queue.put({
                         'cmd': 'stop',
                         'session': session_id,
                     })
-                    self.set_status(200)
+                    self.reply_json(200,{'reason':'Will try to stop tank process.'})
                     return
                 else:
-                    self.set_status(409)
-                    self.finish(json.dumps(
+                    self.reply_json(409,
                         {
                             'reason': 'This session is already stopped',
                             'session': session_id,
                         }
-                    ))
+                    )
                     return
-            else:
-                self.set_status(404)
-                self.finish(json.dumps({
+        else:
+                self.reply_json(404,{
                     'reason': 'No session with this ID found',
                     'session': session_id,
-                }))
+                })
                 return
-        else:
-            self.set_status(400)
-            self.finish(json.dumps(
-                {'reason': 'Specify an ID of a session you want to stop'}
-            ))
-            return
 
-
-class StatusHandler(tornado.web.RequestHandler):
-    def initialize(self, out_queue, sessions, working_dir):
-        self.out_queue = out_queue
-        self.sessions = sessions
+class StatusHandler(APIHandler):
 
     def get(self):
-        print self.request.arguments
-
         session_id = self.get_argument("session",default=None)
-        self.set_header("Content-type", "application/json")
         if session_id:
             if session_id in self.sessions:
-                self.set_status(200)
-                self.finish(json.dumps(
-                    self.sessions[session_id]
-                ))
+                self.reply_json(200,self.sessions[session_id])
             else:
-                self.set_status(404)
-                self.finish(json.dumps({
+                self.reply_json(404,{
                     'reason': 'No session with this ID found',
                     'session': session_id,
-                }))
+                })
         else:
-            self.set_status(200)
-            self.finish(json.dumps(
-                self.sessions
-            ))
+            self.reply_json(200,self.sessions)
 
-
-class ArtifactHandler(tornado.web.RequestHandler):
-    def initialize(self, out_queue, sessions, working_dir):
-        self.out_queue = out_queue
-        self.sessions = sessions
-        self.working_dir = working_dir
+class ArtifactHandler(APIHandler):
 
     def get(self):
         test_id = self.get_argument("test")
@@ -252,22 +204,18 @@ class ArtifactHandler(tornado.web.RequestHandler):
 
         # look for test directory
         if not os.path.exists(os.path.join(self.working_dir, test_id)):
-            self.set_header("Content-type", "application/json")
-            self.set_status(404)
-            self.finish(json.dumps({
+            self.reply_json(404,{
                 'reason': 'No test with this ID found',
                 'test': test_id,
-            }))
+            })
             return
 
         # look for status.json (any test that went past lock stage should have it)
         if not os.path.exists(os.path.join(self.working_dir, test_id, 'status.json')):
-            self.set_header("Content-type", "application/json")
-            self.set_status(404)
-            self.finish(json.dumps({
+            self.reply_json(404,{
                 'reason': 'Test was not performed, no artifacts.',
                 'test': test_id,
-            }))
+            })
             return
 
         if filename:
@@ -276,15 +224,13 @@ class ArtifactHandler(tornado.web.RequestHandler):
                 file_size = os.stat(filepath).st_size
 
                 if file_size > TRANSFER_SIZE_LIMIT and any(s['status'] not in ['success','failed'] for s in self.sessions.values()):
-                    self.set_header("Content-type", "application/json")
-                    self.set_status(503)
-                    self.finish(json.dumps({
+                    self.reply_json(503,{
                         'reason': 'File is too large and test is running',
                         'test': test_id,
                         'filename': filename,
                         'filesize': file_size,
                         'limit': TRANSFER_SIZE_LIMIT,
-                    }))
+                    })
                     return
                 else:
                     self.set_header("Content-type", "application/octet-stream")
@@ -294,13 +240,11 @@ class ArtifactHandler(tornado.web.RequestHandler):
                     self.finish()
                     return
             else:
-                self.set_header("Content-type", "application/json")
-                self.set_status(404)
-                self.finish(json.dumps({
+                self.reply_json(404,{
                     'reason': 'No such file',
                     'test': test_id,
                     'filename': filename,
-                }))
+                })
                 return
         else:
             basepath = os.path.join(self.working_dir, test_id)
@@ -308,9 +252,7 @@ class ArtifactHandler(tornado.web.RequestHandler):
                 f for f in os.listdir(basepath)
                 if os.path.isfile(os.path.join(basepath, f))
             ]
-            self.set_header("Content-type", "application/json")
-            self.set_status(200)
-            self.finish(json.dumps(onlyfiles))
+            self.reply_json(200,json.dumps(onlyfiles))
 
 
 class StaticHandler(tornado.web.RequestHandler):
