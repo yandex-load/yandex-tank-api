@@ -1,5 +1,19 @@
 #!/usr/bin/python2
+import argparse
+
 import yandex_tank_api.manager
 
+def parse_options():
+    '''parse command line options'''
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--debug",
+                        action='store_true',
+                        help='Debug mode of torando',
+                        dest='debug',
+                        default=False
+                        )
+    return parser.parse_args()
+
 if __name__=='__main__':
-    yandex_tank_api.manager.run_server()
+    options=parse_options()
+    yandex_tank_api.manager.run_server(options)
