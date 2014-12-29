@@ -53,3 +53,11 @@ test_stage_order=['lock','init','configure','prepare','start','poll','end','post
 def is_A_earlier_than_B(stage_A,stage_B):
     """Slow but reliable"""
     return test_stage_order.index(stage_A) < test_stage_order.index(stage_B)
+
+def get_valid_breaks():
+    return test_stage_order
+
+def is_valid_break(brk):
+    return brk in test_stage_order
+
+
