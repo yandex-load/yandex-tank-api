@@ -39,7 +39,8 @@ class APIHandler(tornado.web.RequestHandler):
         else:
             self.set_status(status_code,'I\'m a teapot!')
         self.set_header('Content-Type', 'application/json')
-        self.finish(json.dumps(reply,indent=4))
+        reply_str=json.dumps(reply,indent=4)
+        self.finish(reply_str)
 
     def write_error(self,status_code, **kwargs):
         if self.settings.get("debug"):
@@ -82,20 +83,25 @@ class RunHandler(APIHandler):
 
         # 409 if session with this test_id is already running
         if conflict_session is not None:
-            self.reply_json(409,{'reason':'Session with this ID is already running'}.update(conflict_session))
+            reply={'reason':'Session with this ID is already running'}
+            reply.update(conflict_session)
+            self.reply_json(409,reply)
             return
 
         # 409 if finished test with this test_id exists
         test_status_file=os.path.join(self.working_dir, test_id, 'status.json')
         if os.path.exists(test_status_file):
-            status=json.load(open(test_status_file))
-            self.reply_json(409,{'reason':'Session with this ID has already finished'}.update(status))
+            reply={'reason':'Session with this ID has already finished'}
+            reply.update(json.load(open(test_status_file)))
+            self.reply_json(409,reply)
             return
 
 
         # 503 if any running session exists (but no test_id conflict)
         if running_session is not None:
-            self.reply_json(503,{'reason':"Another session already running."}.update(running_session))
+            reply={'reason':'Another session is already running.'}
+            reply.update(running_session)
+            self.reply_json(503,reply)
             return
 
         #Remember that such session exists
