@@ -161,10 +161,10 @@ class TankWorker:
         self.report_status(dump_status=dump_status)
         self.break_at='finished'
 
-    def set_stage(self,stage,status='running',dump_status=True):
+    def set_stage(self,stage,status='running',dump_status=True,stage_completed=False):
         """Unconditionally switch stage and report status to manager"""
         self.stage=stage
-        self.report_status(status,dump_status=dump_status)
+        self.report_status(status,dump_status=dump_status,stage_completed=stage_completed)
        
     def next_stage(self,stage,dump_status=True):
         """Report stage completion and switch to the next test stage if allowed"""
@@ -238,7 +238,7 @@ class TankWorker:
                     self.process_failure("Exception while waiting for permission to unlock:" + traceback.format_exc(ex) )
                                  
                 self.core.release_lock()
-                self.set_stage('finished')
+                self.set_stage('finished',stage_completed=True)
                 self.report_status(status='failed' if self.failures else 'success',
                                    retcode=retcode)
         self.log.info("Done performing test with code %s", retcode)
