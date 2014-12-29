@@ -49,10 +49,9 @@ class TankWorker:
         self.stage='not started' #Not reported anywhere to anybody
         self.failures=[]
 
+        reload(logging)
         self.log = logging.getLogger(__name__)
         self.core = tankcore.TankCore()
-        self.core.artifacts_base_dir = self.working_dir
-        self.core.artifacts_dir = self.working_dir
 
     def __add_log_file(self,logger,loglevel,filename):
         """Adds FileHandler to logger; adds filename to artifacts"""
@@ -75,6 +74,7 @@ class TankWorker:
 
         self.__add_log_file(logger,logging.DEBUG,'tank.log')
         self.__add_log_file(logger,logging.INFO,'tank_brief.log')
+        
 
     def __get_configs_from_dir(self,config_dir):
         """ 
