@@ -258,7 +258,7 @@ class ArtifactHandler(APIHandler):
                 f for f in os.listdir(basepath)
                 if os.path.isfile(os.path.join(basepath, f))
             ]
-            self.reply_json(200,json.dumps(onlyfiles))
+            self.reply_json(200,onlyfiles)
 
 
 class StaticHandler(tornado.web.RequestHandler):
