@@ -42,6 +42,7 @@ setup(
     ],
 
     install_requires=requireModules([
+        'tornado',
 
     ]),
     packages=['yandex_tank_api'],
