@@ -83,7 +83,7 @@ class RunHandler(APIHandler):
 
         # 409 if session with this test_id is already running
         if conflict_session is not None:
-            reply={'reason':'Session with this ID is already running'}
+            reply={'reason':'The test with this ID is already running.'}
             reply.update(conflict_session)
             self.reply_json(409,reply)
             return
@@ -91,7 +91,7 @@ class RunHandler(APIHandler):
         # 409 if finished test with this test_id exists
         test_status_file=os.path.join(self.working_dir, test_id, 'status.json')
         if os.path.exists(test_status_file):
-            reply={'reason':'Session with this ID has already finished'}
+            reply={'reason':'The test with this ID has already finished.'}
             reply.update(json.load(open(test_status_file)))
             self.reply_json(409,reply)
             return
@@ -128,7 +128,7 @@ class RunHandler(APIHandler):
 
         # 400 if invalid breakpoint
         if not common.is_valid_break(breakpoint):
-            self.reply_json(400,{'reason':'Invalid break point',
+            self.reply_json(400,{'reason':'Specified break is not a valid test stage name.',
                                     'hint':
                                         {'breakpoints':common.get_valid_breaks()}
                                    })
@@ -136,13 +136,15 @@ class RunHandler(APIHandler):
 
         # 404 if no such session
         if not session_id in self.sessions:
-            self.reply_json(404,{'reason':'No session with this ID'})
+            self.reply_json(404,{'reason':'No session with this ID.'})
             return
         status_dict=self.sessions[session_id]
 
         # 500 if failed
         if status_dict['status'] == 'failed':
-            self.reply_json(500,status_dict)
+            reply={'reason':'Session failed.'}
+            reply.update(status_dict)
+            self.reply_json(500,reply)
             return
 
         # 418 if in higher state or not running
@@ -175,14 +177,14 @@ class StopHandler(APIHandler):
                 else:
                     self.reply_json(409,
                         {
-                            'reason': 'This session is already stopped',
+                            'reason': 'This session is already stopped.',
                             'session': session_id,
                         }
                     )
                     return
         else:
                 self.reply_json(404,{
-                    'reason': 'No session with this ID found',
+                    'reason': 'No session with this ID.',
                     'session': session_id,
                 })
                 return
@@ -196,7 +198,7 @@ class StatusHandler(APIHandler):
                 self.reply_json(200,self.sessions[session_id])
             else:
                 self.reply_json(404,{
-                    'reason': 'No session with this ID found',
+                    'reason': 'No session with this ID.',
                     'session': session_id,
                 })
         else:
