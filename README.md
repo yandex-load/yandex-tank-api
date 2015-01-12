@@ -10,26 +10,26 @@ Yandex.Tank basics
 ### Test sequence
 
 When a new session is created, a separate tank process is spawned. After this, the test stages are executed in the following order:
-1. **lock**
-   Attempt to acquire the tank lock. This stage fails if another test started via console or API is running.
-2. **init**
-   Logging is set up and tank configuration files are read at this stage.
-3. **configure**
-   The *configure()* method is called for each module. Most of the dynamic configuration is done here.
-4. **prepare**
-   The *prepare_test()* method is called for each module. Heavy and time-consuming tasks (such as stpd-file generation and monitoring agent setup) are done here.
-5. **start**
-   The *start_test()* method is called for each module. This should take as little time as possible. Load generation begins at this moment.
-6. **poll**
-   Once per second the *is_test_finished()* method is called for each module. This stage ends when any of the modules requests to stop the test.
-7. **end** 
-   The *end_test()* method is called for each module. This should take as little time as possible.
-8. **postprocess**
-   The *post_process()* method is called for each module. Heavy and time-consuming tasks are performed here.
-9. **unlock**
-   The tank lock is released and tank process exits.
-10. **finished**
-   This is a virtual stage, the tank process has already terminated.
+  1. **lock**
+     Attempt to acquire the tank lock. This stage fails if another test started via console or API is running.
+  2. **init**
+     Logging is set up and tank configuration files are read at this stage.
+  3. **configure**
+     The *configure()* method is called for each module. Most of the dynamic configuration is done here.
+  4. **prepare**
+     The *prepare_test()* method is called for each module. Heavy and time-consuming tasks (such as stpd-file generation and monitoring agent setup) are done here.
+  5. **start**
+     The *start_test()* method is called for each module. This should take as little time as possible. Load generation begins at this moment.
+  6. **poll**
+     Once per second the *is_test_finished()* method is called for each module. This stage ends when any of the modules requests to stop the test.
+  7. **end** 
+     The *end_test()* method is called for each module. This should take as little time as possible.
+  8. **postprocess**
+     The *post_process()* method is called for each module. Heavy and time-consuming tasks are performed here.
+  9. **unlock**
+     The tank lock is released and tank process exits.
+  10. **finished**
+     This is a virtual stage, the tank process has already terminated.
 
 ### Pausing the test sequence
 When the session is started, the client can specify the test stage before which the test will be paused (the breakpoint) . 
@@ -55,8 +55,8 @@ Request body: Yandex.Tank config in .ini format (the same as for console Tank)
 Creates a new session with a unique *session ID* and launches a new Tank process.
 
 Parameters:
-* test: ID of the *test*. Should be a valid directory name. *Default: randomly generated UUID.*
-* break: the test stage before which the tank will stop and wait until the next break is set. *Default: "finished"*
+  * test: ID of the *test*. Should be a valid directory name. *Default: randomly generated UUID.*
+  * break: the test stage before which the tank will stop and wait until the next break is set. *Default: "finished"*
 
 Reply on success:     
 `
@@ -67,47 +67,47 @@ Reply on success:
 `
 
 Error codes and corresponding reasons in the reply:
-* 400, 'Specified break is not a valid test stage name.' 
-* 409, 'The test with this ID is already running.'
-* 409, 'The test with this ID has already finished.'
-* 503, 'Another session is already running.'
+  * 400, 'Specified break is not a valid test stage name.' 
+  * 409, 'The test with this ID is already running.'
+  * 409, 'The test with this ID has already finished.'
+  * 503, 'Another session is already running.'
 
 2. GET /run?session=...&[break=...]
 
 Sets a new break point for the running session.
 
 Parameters:
-* session: session ID
-* break: the test stage before which the tank will stop and wait until the next break is set. *Default: "finished"*
+  * session: session ID
+  * break: the test stage before which the tank will stop and wait until the next break is set. *Default: "finished"*
 
 Return codes and corresponding reasons:
-* 200, 'Will try to set break before [new break point]'
-* 400, 'Specified break is not a valid test stage name.'           
-* 404, 'No session with this ID.'
-* 418, ... (returned when client tries to move the break point back)
-* 500, 'Session failed.'
+  * 200, 'Will try to set break before [new break point]'
+  * 400, 'Specified break is not a valid test stage name.'           
+  * 404, 'No session with this ID.'
+  * 418, ... (returned when client tries to move the break point back)
+  * 500, 'Session failed.'
 
 3. GET /stop?session=...
 
 Terminates the current test.
 
 Parameters:
-* session: ID of the session to terminate
+  * session: ID of the session to terminate
 
 Return codes and corresponding reasons:
-* 200, 'Will try to stop tank process.'
-* 404, 'No session with this ID.'
-* 409, 'This session is already stopped.'
+  * 200, 'Will try to stop tank process.'
+  * 404, 'No session with this ID.'
+  * 409, 'This session is already stopped.'
 
 4. GET /status?session=...
 
 Returns the status of the specified session.
 
 Parameters:
-* session: ID of the session.
+  * session: ID of the session.
 
 Error code and the corresponding reason:
-* 404, 'No session with this ID.'
+  * 404, 'No session with this ID.'
 
 5. GET /status?
 
@@ -118,11 +118,11 @@ Returns a JSON object where keys are known session IDs and values are the corres
 Returns a JSON array of artifact filenames.
 
 Parameters:
-* test: ID of the test
+  * test: ID of the test
 
 Error codes and the corresponding reasons:
-* 404, 'No test with this ID found'
-* 404, 'Test was not performed, no artifacts.'
+  * 404, 'No test with this ID found'
+  * 404, 'Test was not performed, no artifacts.'
 
 
 7. GET /artifact?test=...&filename=...
@@ -130,14 +130,14 @@ Error codes and the corresponding reasons:
 Sends the specified file to the client.
 
 Parameters:
-* test: ID of the test
-* filename: the artifact file name
+  * test: ID of the test
+  * filename: the artifact file name
 
 Error codes and the corresponding reasons:
-* 404, 'No test with this ID found'
-* 404, 'Test was not performed, no artifacts.'
-* 404, 'No such file'
-* 503, 'File is too large and test is running' (when the file size exceeds 128 kB and test is running)
+  * 404, 'No test with this ID found'
+  * 404, 'Test was not performed, no artifacts.'
+  * 404, 'No such file'
+  * 503, 'File is too large and test is running' (when the file size exceeds 128 kB and test is running)
 
 
 
