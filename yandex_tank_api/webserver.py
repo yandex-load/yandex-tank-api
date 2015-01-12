@@ -75,7 +75,7 @@ class RunHandler(APIHandler):
         # 400 if invalid breakpoint
         if not common.is_valid_break(breakpoint):
             self.reply_json(400,
-                            {'reason':'Invalid break point',
+                            {'reason':'Specified break is not a valid test stage name.',
                              'hint':{'breakpoints':common.get_valid_breaks()}
                             }
                            )
