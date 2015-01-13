@@ -1,7 +1,7 @@
-yandex-tank-api
+Yandex.Tank API
 ===============
 
-Yandex.Tank API is an HTTP server that provides a REST-like API to control Yandex.Tank execution from a remote host.
+This is a HTTP server that allows client to control Yandex.Tank execution.
 Its main purpose is synchronization of Yandex.Tank test stages on multiple load generators.
 
 Yandex.Tank basics
@@ -68,7 +68,7 @@ The client should check the session status to detect Tank failures.
 All handles, except for /artifact, return JSON. On errors this is a JSON object with a key 'reason'.
 
 ### List of API requests
-1. POST /run?[test=...]&[break=...]
+**1. POST /run?[test=...]&[break=...]**
   Request body: Yandex.Tank config in .ini format (the same as for console Tank)
 
   Creates a new session with a unique *session ID* and launches a new Tank process.
@@ -95,7 +95,7 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
     * 409, 'The test with this ID has already finished.'
     * 503, 'Another session is already running.'
 
-2. GET /run?session=...&[break=...]
+**2. GET /run?session=...&[break=...]**
 
   Sets a new break point for the running session.
 
@@ -110,54 +110,54 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
     * 418, ... (returned when client tries to move the break point back)
     * 500, 'Session failed.'
 
-3. GET /stop?session=...
+**3. GET /stop?session=...**
 
-Terminates the current test.
+  Terminates the current test.
 
-Parameters:
-  * session: ID of the session to terminate
+  Parameters:
+    * session: ID of the session to terminate
 
-Return codes and corresponding reasons:
-  * 200, 'Will try to stop tank process.'
-  * 404, 'No session with this ID.'
-  * 409, 'This session is already stopped.'
+  Return codes and corresponding reasons:
+    * 200, 'Will try to stop tank process.'
+    * 404, 'No session with this ID.'
+    * 409, 'This session is already stopped.'
 
-4. GET /status?session=...
+**4. GET /status?session=...**
 
-Returns the status of the specified session.
+  Returns the status of the specified session.
 
-Parameters:
-  * session: ID of the session.
+  Parameters:
+    * session: ID of the session.
 
-Error code and the corresponding reason:
-  * 404, 'No session with this ID.'
+  Error code and the corresponding reason:
+    * 404, 'No session with this ID.'
 
-5. GET /status?
+**5. GET /status?**
 
-Returns a JSON object where keys are known session IDs and values are the corresponding statuses.
+  Returns a JSON object where keys are known session IDs and values are the corresponding statuses.
 
-6. GET /artifact?test=...
+**6. GET /artifact?test=...**
 
-Returns a JSON array of artifact filenames.
+  Returns a JSON array of artifact filenames.
 
-Parameters:
-  * test: ID of the test
+  Parameters:
+    * test: ID of the test
 
-Error codes and the corresponding reasons:
-  * 404, 'No test with this ID found.'
-  * 404, 'Test was not performed, no artifacts.'
+  Error codes and the corresponding reasons:
+    * 404, 'No test with this ID found.'
+    * 404, 'Test was not performed, no artifacts.'
 
-7. GET /artifact?test=...&filename=...
+**7. GET /artifact?test=...&filename=...**
 
-Sends the specified file to the client.
+  Sends the specified file to the client.
 
-Parameters:
-  * test: ID of the test
-  * filename: the artifact file name
+  Parameters:
+    * test: ID of the test
+    * filename: the artifact file name
 
-Error codes and the corresponding reasons:
-  * 404, 'No test with this ID found'
-  * 404, 'Test was not performed, no artifacts.'
-  * 404, 'No such file'
-  * 503, 'File is too large and test is running' (when the file size exceeds 128 kB and some test is running)
+  Error codes and the corresponding reasons:
+    * 404, 'No test with this ID found'
+    * 404, 'Test was not performed, no artifacts.'
+    * 404, 'No such file'
+    * 503, 'File is too large and test is running' (when the file size exceeds 128 kB and some test is running)
  
