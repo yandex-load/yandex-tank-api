@@ -145,7 +145,7 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
 
   Status examples:
   ```json
-  {                                                                                                                                                                                                                  
+  {
     "status": "running",
     "stage_completed": true,
     "break": "start",
