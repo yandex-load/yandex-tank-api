@@ -10,16 +10,16 @@ This is an HTTP server that controls Yandex.Tank execution. It allows the client
 
 API-managed Tank 
 ------------------
-General information on Yandex.Tank installation and usage can be found in its [documentation](http://yandextank.readthedocs.org) 
-This section covers the difference between console Tank and API-managed tank and provides more details on the sequence of the test stages.
+General information on Yandex.Tank installation and usage can be found in its [documentation](http://yandextank.readthedocs.org).
+This section covers the difference between console Tank and API-managed Tank configuration and provides more details on the sequence of the test stages.
 
 ### Tank configuration
 API-managed Tank is configured via configuration files only. They have the same syntax and options as the console Tank configs. 
 
 The configuration parameters are applied in the following order:
-  1. Common Yandex.Tank configuration files that reside in `/etc/yandex-tank/`
+  1. common Yandex.Tank configuration files that reside in `/etc/yandex-tank/`
   2. Yandex.Tank API defaults in `/etc/yandex-tank-api/defaults`
-  3. **The configuration file sent by the client when launching the test**
+  3. **the configuration file sent by the client when launching the test**
   4. Yandex.Tank API overriding configs in `/etc/yandex-tank-api/override`
 
 ### Test stages
