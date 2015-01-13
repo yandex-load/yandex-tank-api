@@ -68,10 +68,11 @@ The client should check the session status to detect Tank failures.
 All handles, except for /artifact, return JSON. On errors this is a JSON object with a key 'reason'.
 
 ### List of API requests
-**1. POST /run?[test=...]&[break=...]**
+1. **POST /run?[test=...]&[break=...]**
+
   Request body: Yandex.Tank config in .ini format (the same as for console Tank)
 
-  Creates a new session with a unique *session ID* and launches a new Tank process.
+  Creates a new session with an unique *session ID* and launches a new Tank process.
 
   Parameters:
     * test: ID of the *test*. Should be a valid directory name. *Default: randomly generated UUID.*
@@ -95,7 +96,7 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
     * 409, 'The test with this ID has already finished.'
     * 503, 'Another session is already running.'
 
-**2. GET /run?session=...&[break=...]**
+2. **GET /run?session=...&[break=...]**
 
   Sets a new break point for the running session.
 
@@ -110,7 +111,7 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
     * 418, ... (returned when client tries to move the break point back)
     * 500, 'Session failed.'
 
-**3. GET /stop?session=...**
+3. **GET /stop?session=...**
 
   Terminates the current test.
 
@@ -122,7 +123,7 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
     * 404, 'No session with this ID.'
     * 409, 'This session is already stopped.'
 
-**4. GET /status?session=...**
+4. **GET /status?session=...**
 
   Returns the status of the specified session.
 
@@ -132,11 +133,11 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
   Error code and the corresponding reason:
     * 404, 'No session with this ID.'
 
-**5. GET /status?**
+5. **GET /status?**
 
   Returns a JSON object where keys are known session IDs and values are the corresponding statuses.
 
-**6. GET /artifact?test=...**
+6. **GET /artifact?test=...**
 
   Returns a JSON array of artifact filenames.
 
@@ -147,7 +148,7 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
     * 404, 'No test with this ID found.'
     * 404, 'Test was not performed, no artifacts.'
 
-**7. GET /artifact?test=...&filename=...**
+7. **GET /artifact?test=...&filename=...**
 
   Sends the specified file to the client.
 
