@@ -17,10 +17,10 @@ This section covers the difference between console Tank and API-managed tank and
 API-managed Tank is configured via configuration files only. They have the same syntax and options as the console Tank configs. 
 
 The configuration parameters are applied in the following order:
-1. Common Yandex.Tank configuration files that reside in `/etc/yandex-tank/`
-2. Yandex.Tank API defaults in `/etc/yandex-tank-api/defaults`
-3. **The configuration file sent by the client when launching the test**
-4. Yandex.Tank API overriding configs in `/etc/yandex-tank-api/override`
+  1. Common Yandex.Tank configuration files that reside in `/etc/yandex-tank/`
+  2. Yandex.Tank API defaults in `/etc/yandex-tank-api/defaults`
+  3. **The configuration file sent by the client when launching the test**
+  4. Yandex.Tank API overriding configs in `/etc/yandex-tank-api/override`
 
 ### Test stages
 
