@@ -6,15 +6,15 @@ This is an HTTP server that controls Yandex.Tank execution. It allows the client
 * launch Yandex.Tank and begin the test
 * terminate the launched Tank at an arbitrary moment
 * obtain the test status
-* download the artifacts in a safe manner, without interference to another tests 
+* download the artifacts in a safe manner, without interference to another tests
 
-API-managed Tank 
+API-managed Tank
 ------------------
 General information on Yandex.Tank installation and usage can be found in its [documentation](http://yandextank.readthedocs.org).
 This section covers the difference between console Tank and API-managed Tank configuration and provides more details on the sequence of the test stages.
 
 ### Tank configuration
-API-managed Tank is configured via configuration files only. They have the same syntax and options as the console Tank configs. 
+API-managed Tank is configured via configuration files only. They have the same syntax and options as the console Tank configs.
 
 The configuration parameters are applied in the following order:
   1. common Yandex.Tank configuration files that reside in `/etc/yandex-tank/`
@@ -49,7 +49,7 @@ When the client launches a new test, a new *session* is created and a separate *
 
      Once per second the *is_test_finished()* method is called for each module. This stage ends when any of the modules requests to stop the test.
 
-  7. **end** 
+  7. **end**
 
      The *end_test()* method is called for each module. This should take as little time as possible.
 
@@ -69,18 +69,18 @@ The last session status is temporarily stored after tank exit.
 The test artifacts are stored forever and should be deleted by external means when not needed.
 
 ### Pausing the test sequence
-When the session is started, the client can specify the test stage before which the test will be paused (the breakpoint) . 
-After completing the stages preceding the breakpoint, the Tank will wait until the breakpoint is moved further. You cannot move the breakpoint back. 
+When the session is started, the client can specify the test stage before which the test will be paused (the breakpoint) .
+After completing the stages preceding the breakpoint, the Tank will wait until the breakpoint is moved further. You cannot move the breakpoint back.
 
-The breakpoint can be set before any stage. One of the most frequent use cases is to set the breakpoint at the **start** stage to synchronize several tanks.
-Another is setting the breakpoint at the unlock stage to download the artifacts without interference from other tests.
-Beware that setting the breakpoint at the **poll** stage can lead to very exotic behaviour.
+The breakpoint can be set *before* any stage. One of the most frequent use cases is to set the breakpoint before the **start** stage to synchronize several tanks.
+Another is setting the breakpoint before the unlock stage to download the artifacts without interference from other tests.
+Beware that setting the breakpoint before the **poll** stage can lead to very exotic behaviour.
 
 API requests
 -----------
 
-All API requests are asynchronous. HTTP code 200 is returned when no error occured while processing the request. 
-However, this does not necessary mean that the requested action will be successfully performed. 
+All API requests are asynchronous. HTTP code 200 is returned when no error occured while processing the request.
+However, this does not necessarily mean that the requested action will be successfully performed.
 The client should check the session status to detect Tank failures.
 
 All handles, except for /artifact, return JSON. On errors this is a JSON object with a key 'reason'.
@@ -105,7 +105,7 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
   ```
 
   Error codes and corresponding reasons in the reply:
-    * 400, 'Specified break is not a valid test stage name.' 
+    * 400, 'Specified break is not a valid test stage name.'
     * 409, 'The test with this ID is already running.'
     * 409, 'The test with this ID has already finished.'
     * 503, 'Another session is already running.'
@@ -120,7 +120,7 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
 
   Return codes and corresponding reasons:
     * 200, 'Will try to set break before [new break point]'
-    * 400, 'Specified break is not a valid test stage name.'           
+    * 400, 'Specified break is not a valid test stage name.'
     * 404, 'No session with this ID.'
     * 418, ... (returned when client tries to move the break point back)
     * 500, 'Session failed.'
@@ -203,5 +203,3 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
     * 404, 'Test was not performed, no artifacts.'
     * 404, 'No such file'
     * 503, 'File is too large and test is running' (when the file size exceeds 128 kB and some test is running)
-
- 
