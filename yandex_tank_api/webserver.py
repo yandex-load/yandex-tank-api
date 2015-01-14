@@ -231,7 +231,9 @@ class ArtifactHandler(APIHandler):
             if os.path.exists(filepath):
                 file_size = os.stat(filepath).st_size
 
-                if file_size > TRANSFER_SIZE_LIMIT and any(s['status'] not in ['success','failed'] for s in self.sessions.values()):
+                if file_size > TRANSFER_SIZE_LIMIT and\
+                any(s['status'] not in ['success','failed'] and\
+                        common.is_A_earlier_than_B(s['current_stage'],'postprocess') for s in self.sessions.values()):
                     self.reply_json(503,{
                         'reason': 'File is too large and test is running',
                         'test': test_id,
