@@ -42,8 +42,8 @@ setup(
     ],
 
     install_requires=requireModules([
-        'tornado',
-
+        'tornado>=3.1',
+        'pyjade>=3.0.0'
     ]),
     packages=['yandex_tank_api'],
     package_dir={'yandex_tank_api': 'yandex_tank_api'},
