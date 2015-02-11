@@ -47,18 +47,19 @@ setup(
     ]),
     packages=['yandex_tank_api'],
     package_dir={'yandex_tank_api': 'yandex_tank_api'},
-    package_data={'yandex_tank_api': [
-        'templates/*.jade',
-        'static/css/*.css',
-        'static/favicon.ico',
-        'static/fonts/*',
-        'static/js/*.js',
-        'static/js/vendor/ace/*.js',
-        'static/js/vendor/*.js',
-    ]},
+    package_data={
+        'yandex_tank_api': [
+            'templates/*.jade',
+            'static/css/*.css',
+            'static/favicon.ico',
+            'static/fonts/*',
+            'static/js/*.js',
+            'static/js/vendor/ace/*.js',
+            'static/js/vendor/*.js',
+        ],
+        'yandex_tank_api': ['config/*'],
+    },
     scripts=['scripts/yandex-tank-api-server'],
-    data_files=[('/var/lib/yandex-tank-api/stpd-cache', []),
-                ('/etc/yandex-tank-api/defaults', ['tank_configs/00-tank-api-defaults.ini']),
-                ('/etc/yandex-tank-api/override',['tank_configs/99-tank-api-override.ini'])],
-    test_suite='yandex-tank-api'
+    data_files=[('/var/lib/yandex-tank-api/stpd-cache', [])],
+    test_suite='yandex-tank-api',
 )
