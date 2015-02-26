@@ -14,12 +14,15 @@ import json
 import itertools as itt
 from pkg_resources import resource_filename
 
+NEW_TANK = True
+
 try:
     import yandextank.core as tankcore
 except ImportError, e:
     # in case of old tank version
     sys.path.append('/usr/lib/yandex-tank')
     import tankcore
+    NEW_TANK = False
 
 # Yandex.Tank.Api modules
 
@@ -104,7 +107,8 @@ class TankWorker:
     def __get_configs(self):
         """Returns list of all configs for this test"""
         configs = itt.chain(
-            [resource_filename('yandextank.core', 'config/00-base.ini')],
+            [resource_filename('yandextank.core', 'config/00-base.ini')]
+            if NEW_TANK else [],
             self.__get_configs_from_dir('/etc/yandex-tank/'),
             [resource_filename(__name__, 'config/00-default.ini')],
             self.__get_configs_from_dir('/etc/yandex-tank-api/defaults'),
