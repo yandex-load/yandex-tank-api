@@ -110,11 +110,11 @@ class TankWorker:
             [resource_filename('yandextank.core', 'config/00-base.ini')]
             if NEW_TANK else [],
             self.__get_configs_from_dir('/etc/yandex-tank/'),
-            [resource_filename(__name__, 'config/00-default.ini')],
+            [resource_filename(__name__, 'config/00-tank-api-defaults.ini')],
             self.__get_configs_from_dir('/etc/yandex-tank-api/defaults'),
             self.__get_configs_from_dir(self.working_dir),
             self.__get_configs_from_dir('/etc/yandex-tank-api/override'),
-            [resource_filename(__name__, 'config/99-override.ini')],
+            [resource_filename(__name__, 'config/99-tank-api-override.ini')],
         )
         return configs
 
