@@ -106,7 +106,7 @@ class TankWorker:
 
     def __get_configs(self):
         """Returns list of all configs for this test"""
-        configs = itt.chain(
+        configs = list(itt.chain(
             [resource_filename('yandextank.core', 'config/00-base.ini')]
             if NEW_TANK else [],
             self.__get_configs_from_dir('/etc/yandex-tank/'),
@@ -115,7 +115,7 @@ class TankWorker:
             self.__get_configs_from_dir(self.working_dir),
             self.__get_configs_from_dir('/etc/yandex-tank-api/override'),
             [resource_filename(__name__, 'config/99-tank-api-override.ini')],
-        )
+        ))
         return configs
 
     def __preconfigure(self):
