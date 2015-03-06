@@ -60,6 +60,5 @@ setup(
         'yandex_tank_api': ['config/*'],
     },
     scripts=['scripts/yandex-tank-api-server'],
-    data_files=[('/var/lib/yandex-tank-api/stpd-cache', [])],
     test_suite='yandex-tank-api',
 )
