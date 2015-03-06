@@ -12,6 +12,11 @@ def parse_options():
                         dest='debug',
                         default=False
                         )
+    parser.add_argument("--work-dir",
+                        help='Working directory (for tests, etc).',
+                        default='/var/lib/yandex-tank-api',
+                        dest='work_dir'
+                        )
     return parser.parse_args()
 
 if __name__=='__main__':

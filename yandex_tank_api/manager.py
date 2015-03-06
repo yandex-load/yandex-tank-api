@@ -244,7 +244,7 @@ def run_server(options):
     # Configure
     # TODO: un-hardcode cfg
     cfg = {'tank_check_interval': 1.0,
-           'tests_dir': '/var/lib/yandex-tank-api/tests'}
+           'tests_dir': options.work_dir+'/tests'}
     # TODO: really setup logging
     logging.basicConfig(
         level=logging.DEBUG, format="%(asctime)s %(levelname)s: %(message)s")
