@@ -45,6 +45,10 @@ class TankWorker(object):
     IGNORE_LOCKS = "ignore_locks"
 
     def __init__(self, tank_queue, manager_queue, working_dir, session, test):
+        if NEW_TANK:
+            logging.info("Using yandextank.core as tank core")
+        else:
+            logging.warning("Using obsolete /usr/lib/yandex-tank/tankcore.py as tank core")
 
         # Parameters from manager
         self.tank_queue = tank_queue
