@@ -17,6 +17,11 @@ def parse_options():
                         default='/var/lib/yandex-tank-api',
                         dest='work_dir'
                         )
+    parser.add_argument("--ignore-machine-defaults",
+                        help='Ignore tank defaults from /etc/yandex-tank/',
+                        default=False,
+                        dest='ignore_machine_defaults'
+                        )
     return parser.parse_args()
 
 if __name__=='__main__':

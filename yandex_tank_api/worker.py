@@ -44,7 +44,9 @@ class TankWorker(object):
 
     IGNORE_LOCKS = "ignore_locks"
 
-    def __init__(self, tank_queue, manager_queue, working_dir, session, test):
+    def __init__(
+            self, tank_queue, manager_queue, working_dir,
+            session, test, ignore_machine_defaults):
         if NEW_TANK:
             logging.info("Using yandextank.core as tank core")
         else:
@@ -56,6 +58,7 @@ class TankWorker(object):
         self.working_dir = working_dir
         self.session = session
         self.test = test
+        self.ignore_machine_defaults = ignore_machine_defaults
 
         # State variables
         self.break_at = 'lock'
@@ -113,7 +116,8 @@ class TankWorker(object):
         configs = list(itt.chain(
             [resource_filename('yandextank.core', 'config/00-base.ini')]
             if NEW_TANK else [],
-            self.__get_configs_from_dir('/etc/yandex-tank/'),
+            self.__get_configs_from_dir('/etc/yandex-tank/')
+            if not self.ignore_machine_defaults else [],
             [resource_filename(__name__, 'config/00-tank-api-defaults.ini')],
             self.__get_configs_from_dir('/etc/yandex-tank-api/defaults'),
             self.__get_configs_from_dir(self.working_dir),
@@ -272,7 +276,7 @@ class TankWorker(object):
         self.log.info("Done performing test with code %s", retcode)
 
 
-def run(tank_queue, manager_queue, work_dir, session, test):
+def run(tank_queue, manager_queue, work_dir, session, test, ignore_machine_defaults):
     """
     Target for tank process.
     This is the only function from this module ever used by Manager.
@@ -286,4 +290,5 @@ def run(tank_queue, manager_queue, work_dir, session, test):
     """
     os.chdir(work_dir)
     TankWorker(
-        tank_queue, manager_queue, work_dir, session, test).perform_test()
+        tank_queue, manager_queue, work_dir,
+        session, test, ignore_machine_defaults).perform_test()

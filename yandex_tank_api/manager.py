@@ -51,9 +51,12 @@ class TankRunner(object):
         self.tank_queue = multiprocessing.Queue()
         self.set_break(first_break)
 
+        ignore_machine_defaults = cfg['ignore_machine_defaults']
+
         # Start tank process
         self.tank_process = multiprocessing.Process(target=worker.run, args=(
-            self.tank_queue, manager_queue, work_dir, session, test_id))
+            self.tank_queue, manager_queue,
+            work_dir, session, test_id, ignore_machine_defaults))
         self.tank_process.start()
 
     def set_break(self, next_break):
@@ -243,8 +246,11 @@ def run_server(options):
 
     # Configure
     # TODO: un-hardcode cfg
-    cfg = {'tank_check_interval': 1.0,
-           'tests_dir': options.work_dir+'/tests'}
+    cfg = {
+        'tank_check_interval': 1.0,
+        'tests_dir': options.work_dir+'/tests',
+        'ignore_machine_defaults': options.ignore_machine_defaults,
+    }
     # TODO: really setup logging
     logging.basicConfig(
         level=logging.DEBUG, format="%(asctime)s %(levelname)s: %(message)s")
