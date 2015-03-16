@@ -18,6 +18,7 @@ def parse_options():
                         dest='work_dir'
                         )
     parser.add_argument("--ignore-machine-defaults",
+                        action='store_true',
                         help='Ignore tank defaults from /etc/yandex-tank/',
                         default=False,
                         dest='ignore_machine_defaults'
