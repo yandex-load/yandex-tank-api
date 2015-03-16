@@ -38,7 +38,7 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 
-class TankWorker:
+class TankWorker(object):
 
     """    Worker class that runs tank core until the next breakpoint   """
 
