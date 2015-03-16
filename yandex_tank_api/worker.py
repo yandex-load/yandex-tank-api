@@ -37,6 +37,8 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
+class TankCore(tankcore.TankCore):
+    pass
 
 class TankWorker(object):
 
@@ -67,7 +69,7 @@ class TankWorker(object):
 
         reload(logging)
         self.log = logging.getLogger(__name__)
-        self.core = tankcore.TankCore()
+        self.core = TankCore()
 
     def __add_log_file(self, logger, loglevel, filename):
         """Adds FileHandler to logger; adds filename to artifacts"""
