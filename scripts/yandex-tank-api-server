@@ -1,6 +1,7 @@
 #!/usr/bin/python2
 import argparse
-
+import daemon
+import pwd
 import yandex_tank_api.manager
 
 def parse_options():
@@ -12,11 +13,22 @@ def parse_options():
                         dest='debug',
                         default=False
                         )
+    parser.add_argument("--daemon-uid",
+                        help='Daemonize and run as a specified user',
+                        dest='daemon_uid',
+                        default=None
+                        )
     parser.add_argument("--work-dir",
                         help='Working directory (for tests, etc).',
                         default='/var/lib/yandex-tank-api',
                         dest='work_dir'
                         )
+    parser.add_argument("--log-dir",
+                        help='Working directory (for tests, etc).',
+                        default='/var/log/yandex-tank-api',
+                        dest='log_dir'
+                        )
+ 
     parser.add_argument("--ignore-machine-defaults",
                         action='store_true',
                         help='Ignore tank defaults from /etc/yandex-tank/',
@@ -27,4 +39,13 @@ def parse_options():
 
 if __name__=='__main__':
     options=parse_options()
-    yandex_tank_api.manager.run_server(options)
+
+    if options.daemon_uid is not None:
+        try:
+            uid=int(options.daemon_uid)
+        except ValueError:
+            uid = pwd.getpwnam(options.daemon_uid)[2]
+        with daemon.DaemonContext(uid=uid):
+            yandex_tank_api.manager.run_server(options)
+    else:
+         yandex_tank_api.manager.run_server(options)
