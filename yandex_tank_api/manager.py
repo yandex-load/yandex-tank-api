@@ -251,20 +251,24 @@ def run_server(options):
         'tests_dir': options.work_dir+'/tests',
         'ignore_machine_defaults': options.ignore_machine_defaults,
     }
-    # TODO: really setup logging
-    logging.basicConfig(
-        level=logging.DEBUG, format="%(asctime)s %(levelname)s: %(message)s")
+    
+    if options.log_file is not None:
+        logger = logging.getLogger()
+        logger.setLevel(logging.DEBUG)
+        handler = logging.handlers.RotatingFileHandler(options.log_file, maxBytes=1000000, backupCount=16)
+        handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s %(message)s"))
+        logger.addHandler(handler)
+    else:
+        logging.basicConfig(
+            level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(name)s %(message)s")
 
-    # TODO: daemonize
-
-    # Create queues for manager and webserver
     manager_queue = multiprocessing.Queue()
     webserver_queue = multiprocessing.Queue()
 
-    # Fork webserver
-    webserver_process = multiprocessing.Process(target=webserver.main, args=(
-        webserver_queue, manager_queue, cfg['tests_dir'], options.debug))
+    webserver_process = multiprocessing.Process(
+        target=webserver.main, 
+        args=(webserver_queue, manager_queue, cfg['tests_dir'], options.debug)
+        )
     webserver_process.start()
 
-    # Run
     Manager(cfg, manager_queue, webserver_queue).run()
