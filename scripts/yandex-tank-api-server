@@ -1,7 +1,8 @@
 #!/usr/bin/python2
 import argparse
-import daemon
 import pwd
+import daemon
+
 import yandex_tank_api.manager
 
 def parse_options():
@@ -25,8 +26,8 @@ def parse_options():
                         )
     parser.add_argument("--log",
                         help='Log file',
-                        default='None',
-                        dest='log'
+                        default=None,
+                        dest='log_file'
                         )
  
     parser.add_argument("--ignore-machine-defaults",
@@ -48,4 +49,4 @@ if __name__=='__main__':
         with daemon.DaemonContext(uid=uid):
             yandex_tank_api.manager.run_server(options)
     else:
-         yandex_tank_api.manager.run_server(options)
+        yandex_tank_api.manager.run_server(options)

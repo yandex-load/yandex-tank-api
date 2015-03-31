@@ -251,16 +251,16 @@ def run_server(options):
         'tests_dir': options.work_dir+'/tests',
         'ignore_machine_defaults': options.ignore_machine_defaults,
     }
-    
-    if options.log_file is not None:
-        logger = logging.getLogger()
-        logger.setLevel(logging.DEBUG)
-        handler = logging.handlers.RotatingFileHandler(options.log_file, maxBytes=1000000, backupCount=16)
-        handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s %(message)s"))
-        logger.addHandler(handler)
+   
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+    if options.log_file is None:
+        handler = logging.StreamHandler()
     else:
-        logging.basicConfig(
-            level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(name)s %(message)s")
+        handler = logging.handlers.RotatingFileHandler(options.log_file, maxBytes=1000000, backupCount=16)
+
+    handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s %(message)s"))
+    logger.addHandler(handler)
 
     manager_queue = multiprocessing.Queue()
     webserver_queue = multiprocessing.Queue()
