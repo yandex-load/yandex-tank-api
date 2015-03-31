@@ -41,11 +41,7 @@ setup(
         'Intended Audience :: Developers'
     ],
 
-    install_requires=requireModules([
-        'tornado>=3.1',
-        'pyjade>=3.0.0',
-        'python-daemon>=1.5'#Not 'daemon', that's another package!
-    ]),
+    install_requires=requireModules(),
     packages=['yandex_tank_api'],
     package_dir={'yandex_tank_api': 'yandex_tank_api'},
     package_data={

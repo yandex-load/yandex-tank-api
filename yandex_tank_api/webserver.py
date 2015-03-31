@@ -3,8 +3,12 @@
 import logging
 import tornado.ioloop
 import tornado.web
-from pyjade.ext.tornado import patch_tornado
-patch_tornado()
+try:
+    from pyjade.ext.tornado import patch_tornado
+    patch_tornado()
+    USE_JADE=True
+except:
+    USE_JADE=False
 
 import os.path
 import os
@@ -296,19 +300,26 @@ class ApiServer(object):
             sessions=self.sessions,
             working_dir=self.working_dir,
         )
-        self.app = tornado.web.Application(
-            [
-                (r"/run", RunHandler, handler_params),
-                (r"/stop", StopHandler, handler_params),
-                (r"/status", StatusHandler, handler_params),
-                (r"/artifact", ArtifactHandler, handler_params),
+
+        handlers=[
+            (r"/run", RunHandler, handler_params),
+            (r"/stop", StopHandler, handler_params),
+            (r"/status", StatusHandler, handler_params),
+            (r"/artifact", ArtifactHandler, handler_params)
+            ]
+
+        if USE_JADE:
+            handlers.append(
                 (r"/manager\.html$", StaticHandler,
-                 {"template": "manager.jade"})
-            ],
+                {"template": "manager.jade"})
+                )
+ 
+        self.app = tornado.web.Application(
+            handlers,
             template_path=os.path.join(os.path.dirname(__file__), "templates"),
             static_path=os.path.join(os.path.dirname(__file__), "static"),
             debug=debug,
-        )
+            )
 
     def update_status(self):
         try:
