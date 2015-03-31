@@ -1,0 +1,11 @@
+description "Yandex.Tank HTTP API server"
+
+script
+    USER=$(cat /etc/yandex-tank-api/user || echo yandextankapi)
+    install -o $USER -d /var/log/yandex-tank-api
+    install -o $USER -d /var/lib/yandex-tank-api
+    yandex-tank-api-server --log /var/lib/yandex-tank-api/server.log --work-dir /var/log/yandex-tank-api --daemon-uid $USER
+end script
+
+respawn
+
