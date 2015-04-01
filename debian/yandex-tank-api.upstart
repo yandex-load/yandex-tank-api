@@ -7,5 +7,9 @@ script
     yandex-tank-api-server --log /var/log/yandex-tank-api/server.log --work-dir /var/lib/yandex-tank-api --daemon-uid $USER
 end script
 
+expect daemon
+
 respawn
+
+limit nofile 65535 65535
 
