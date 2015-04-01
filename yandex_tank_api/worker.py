@@ -29,14 +29,6 @@ except ImportError, e:
 # Test stage order, internal protocol description, etc...
 import common
 
-
-def signal_handler(sig, frame):
-    """ Converts SIGTERM and SIGINT into KeyboardInterrupt() exception """
-    raise KeyboardInterrupt()
-
-signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
-
 class TankCore(tankcore.TankCore):
     pass
 
