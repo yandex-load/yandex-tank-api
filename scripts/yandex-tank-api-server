@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python
 import argparse
 import logging
 
@@ -19,6 +19,13 @@ def parse_options():
                         dest='debug',
                         default=False
                         )
+    parser.add_argument("--nodetach-process",
+                        action='store_true',
+                        help='Do not detach the process context when daemonizing',
+                        dest='nodetach_process',
+                        default=False
+                        )
+ 
     parser.add_argument("--daemon-uid",
                         help='Daemonize and run under specified user',
                         dest='daemon_uid',
@@ -68,6 +75,7 @@ if __name__=='__main__':
 
             with daemon.DaemonContext(uid=uid,
                                       pidfile=pidfile,
+                                      detach_process=not options.nodetach_process,
                                       signal_map=signal_map
                                       ):
                 yandex_tank_api.manager.run_server(options)

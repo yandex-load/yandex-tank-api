@@ -1,13 +1,18 @@
 description "Yandex.Tank HTTP API server"
 
-script
-    USER=$(cat /etc/yandex-tank-api/user || echo yandextankapi)
-    install -o $USER -d /var/log/yandex-tank-api
-    install -o $USER -d /var/lib/yandex-tank-api
-    yandex-tank-api-server --log /var/log/yandex-tank-api/server.log --work-dir /var/lib/yandex-tank-api --daemon-uid $USER
+pre-start script
+    [ -e /etc/yandex-tank-api/user ] || { echo "No user specified in /etc/yandex-tank-api/user"; exit 1; }
+    USER=$(cat /etc/yandex-tank-api/user)
+    mkdir -p /var/log/yandex-tank-api
+    chown $USER /var/log/yandex-tank-api
+    mkdir -p /var/lib/yandex-tank-api
+    chown $USER /var/lib/yandex-tank-api
+    sudo -u $USER touch /var/log/yandex-tank-api/server.log || rm /var/log/yandex-tank-api/server.log
 end script
 
-expect daemon
+exec yandex-tank-api-server --log /var/log/yandex-tank-api/server.log --work-dir /var/lib/yandex-tank-api --nodetach-process --daemon-uid $(cat /etc/yandex-tank-api/user)
+
+normal exit 0 1 TERM HUP
 
 respawn
 

@@ -9,7 +9,6 @@ import json
 import common
 import worker
 import webserver
-import signal_handler
 
 class TankRunner(object):
 
