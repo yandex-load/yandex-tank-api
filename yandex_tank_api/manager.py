@@ -9,7 +9,7 @@ import json
 import common
 import worker
 import webserver
-
+import signal_handler
 
 class TankRunner(object):
 
@@ -91,15 +91,24 @@ class Manager(object):
 
     def __init__(self,
                  cfg,
-                 manager_queue,
-                 webserver_queue,
                  TankRunnerClass=TankRunner):
         """Sets up initial state of Manager"""
         self.log = logging.getLogger(__name__)
 
         self.cfg = cfg
-        self.manager_queue = manager_queue
-        self.webserver_queue = webserver_queue
+
+        self.manager_queue = multiprocessing.Queue()
+        self.webserver_queue = multiprocessing.Queue()
+
+        self.webserver_process = multiprocessing.Process(
+            target=webserver.main, 
+            args=(self.webserver_queue, 
+                  self.manager_queue, 
+                  cfg['tests_dir'],
+                  cfg['tornado_debug'])
+            )
+        self.webserver_process.daemon=True
+        self.webserver_process.start()
 
         self.TankRunner = TankRunnerClass
         self.reset_session()
@@ -210,7 +219,13 @@ class Manager(object):
                     # Fetch any remaining messages and wait one more timeout
                     # before reporting unexpected death and resetting session
                     handle_tank_exit = True
-
+                elif not self.webserver_process.is_alive():
+                    self.log.error("Webserver died unexpectedly.")
+                    if self.tank_runner is not None:
+                        self.log.warning("Stopping tank...")
+                        self.tank_runner.stop()
+                        self.tank_runner.join()
+                    return
                 else:
                     # No messages. Either no session or tank is just quietly
                     # doing something.
@@ -250,25 +265,26 @@ def run_server(options):
         'tank_check_interval': 1.0,
         'tests_dir': options.work_dir+'/tests',
         'ignore_machine_defaults': options.ignore_machine_defaults,
+        'tornado_debug':options.debug
     }
-   
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
+  
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
     if options.log_file is None:
         handler = logging.StreamHandler()
     else:
         handler = logging.handlers.RotatingFileHandler(options.log_file, maxBytes=1000000, backupCount=16)
 
     handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s %(message)s"))
-    logger.addHandler(handler)
+    root_logger.addHandler(handler)
 
-    manager_queue = multiprocessing.Queue()
-    webserver_queue = multiprocessing.Queue()
-
-    webserver_process = multiprocessing.Process(
-        target=webserver.main, 
-        args=(webserver_queue, manager_queue, cfg['tests_dir'], options.debug)
-        )
-    webserver_process.start()
-
-    Manager(cfg, manager_queue, webserver_queue).run()
+    logger=logging.getLogger(__name__) 
+    try:
+        logger.info("Starting server")
+        Manager(cfg).run()
+    except KeyboardInterrupt:
+        logger.info("Interrupted, terminating")
+    except Exception:
+        logger.exception("Unhandled exception in manager.run_server:")
+    except:
+        logger.error("Caught something strange in manager.run_server")
