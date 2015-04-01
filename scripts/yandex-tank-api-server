@@ -1,7 +1,12 @@
 #!/usr/bin/python2
 import argparse
+import logging
+
 import pwd
+import signal
+
 import daemon
+import daemon.pidlockfile
 
 import yandex_tank_api.manager
 
@@ -38,15 +43,35 @@ def parse_options():
                         )
     return parser.parse_args()
 
+def signal_handler(sig, frame):
+    """ required for everything to be released safely on SIGTERM and SIGINT"""
+    raise KeyboardInterrupt()
+
+
+
 if __name__=='__main__':
+    logging.basicConfig(level=logging.DEBUG,format="%(asctime)s %(levelname)s: %(message)s")
     options=parse_options()
 
-    if options.daemon_uid is not None:
-        try:
-            uid=int(options.daemon_uid)
-        except ValueError:
-            uid = pwd.getpwnam(options.daemon_uid)[2]
-        with daemon.DaemonContext(uid=uid):
+    try:
+        if options.daemon_uid is not None:
+            try:
+                uid=int(options.daemon_uid)
+            except ValueError:
+                uid = pwd.getpwnam(options.daemon_uid)[2]
+
+            signal_map={signal.SIGINT : signal_handler,
+                        signal.SIGTERM: signal_handler}
+
+            pidfile = daemon.pidlockfile.PIDLockFile("/var/run/lock/yandex-tank-api.pid")
+
+
+            with daemon.DaemonContext(uid=uid,
+                                      pidfile=pidfile,
+                                      signal_map=signal_map
+                                      ):
+                yandex_tank_api.manager.run_server(options)
+        else:
             yandex_tank_api.manager.run_server(options)
-    else:
-        yandex_tank_api.manager.run_server(options)
+    except:
+        logging.exception("Uncaught exception:")
