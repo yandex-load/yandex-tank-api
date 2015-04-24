@@ -58,6 +58,7 @@ class TankWorker(object):
         self.break_at = 'lock'
         self.stage = 'not started'
         self.failures = []
+        self.retcode = None
 
         reload(logging)
         self.log = logging.getLogger(__name__)
@@ -153,7 +154,7 @@ class TankWorker(object):
                 self.break_at = br
                 return
 
-    def report_status(self, status='running', retcode=None, dump_status=True, stage_completed=False):
+    def report_status(self, status='running', dump_status=True, stage_completed=False):
         """Report status to manager and dump status.json, if required"""
         msg = {'status': status,
                'session': self.session,
@@ -161,9 +162,9 @@ class TankWorker(object):
                'current_stage': self.stage,
                'stage_completed': stage_completed,
                'break': self.break_at,
-               'failures': self.failures}
-        if retcode is not None:
-            msg['retcode'] = retcode
+               'failures': self.failures,
+               'retcode': self.retcode
+               }
         self.manager_queue.put(msg)
         if dump_status:
             json.dump(
@@ -200,7 +201,6 @@ class TankWorker(object):
 
     def perform_test(self):
         """Perform the test sequence via TankCore"""
-        retcode = 1
 
         try:
             self.next_stage('lock', dump_status=False)
@@ -209,12 +209,12 @@ class TankWorker(object):
         except KeyboardInterrupt:
             self.process_failure("Interrupted")
             self.report_status(
-                status='failed', retcode=retcode, dump_status=False)
+                status='failed', dump_status=False)
             return
         except Exception:
             self.process_failure('Failed to obtain lock', dump_status=False)
             self.report_status(
-                status='failed', retcode=retcode, dump_status=False)
+                status='failed', dump_status=False)
             return
 
         try:
@@ -231,7 +231,7 @@ class TankWorker(object):
             self.core.plugins_start_test()
 
             self.next_stage('poll')
-            retcode = self.core.wait_for_finish()
+            self.retcode = self.core.wait_for_finish()
 
         except KeyboardInterrupt:
             self.process_failure("Interrupted")
@@ -243,12 +243,12 @@ class TankWorker(object):
         finally:
             try:
                 self.next_stage('end')
-                retcode = self.core.plugins_end_test(retcode)
+                self.retcode = self.core.plugins_end_test(self.retcode)
 
                 # We do NOT call post_process if end_test failed
                 # Not sure if it is the desired behaviour
                 self.next_stage('postprocess')
-                retcode = self.core.plugins_post_process(retcode)
+                self.retcode = self.core.plugins_post_process(self.retcode)
             except KeyboardInterrupt:
                 self.process_failure("Interrupted")
             except Exception as ex:
@@ -266,8 +266,8 @@ class TankWorker(object):
                 self.core.release_lock()
                 self.set_stage('finished', stage_completed=True)
                 self.report_status(status='failed' if self.failures else 'success',
-                                   retcode=retcode, stage_completed=True)
-        self.log.info("Done performing test with code %s", retcode)
+                                   stage_completed=True)
+        self.log.info("Done performing test with code %s", self.retcode)
 
 
 def run(tank_queue, manager_queue, work_dir, session, test, ignore_machine_defaults):
