@@ -208,8 +208,8 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
 
 Some custom plugins might need to know if they are wokring in the console Tank or under API.
 
-API worker process uses a yandex\_tank\_api.worker.TankCore class as a tank core (just a subclass of a standard TankCore).
-Thus, the plugin can detect execution under API by simply checking that
+API worker process uses a subclass of a standard TankCore as a tank core.
+Thus, a plugin can detect execution under API by simply checking that
 ```python
-str(self.core.\_\_class\_\_)=='yandex\_tank\_api.worker.TankCore'
+str(self.core.__class__)=='yandex_tank_api.worker.TankCore'
 ```
