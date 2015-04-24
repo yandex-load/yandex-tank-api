@@ -203,3 +203,13 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
     * 404, 'Test was not performed, no artifacts.'
     * 404, 'No such file'
     * 503, 'File is too large and test is running' (when the file size exceeds 128 kB and some test is running)
+
+### Writing plugins
+
+Some custom plugins might need to know if they are wokring in the console Tank or under API.
+
+API worker process uses a yandex\_tank\_api.worker.TankCore class as a tank core (just a subclass of a standard TankCore).
+Thus, the plugin can detect execution under API by simply checking that
+```python
+str(self.core.\_\_class\_\_)=='yandex\_tank\_api.worker.TankCore'
+```

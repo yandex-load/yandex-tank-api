@@ -9,7 +9,6 @@ import os
 import os.path
 import sys
 import traceback
-import signal
 import json
 import itertools as itt
 from pkg_resources import resource_filename
@@ -18,19 +17,31 @@ NEW_TANK = True
 
 try:
     import yandextank.core as tankcore
-except ImportError, e:
+except ImportError:
     # in case of old tank version
     sys.path.append('/usr/lib/yandex-tank')
-    import tankcore
+    import tankcore #pylint: disable=F0401
     NEW_TANK = False
 
 # Yandex.Tank.Api modules
 
 # Test stage order, internal protocol description, etc...
-import common
+import yandex_tank_api.common as common
+
 
 class TankCore(tankcore.TankCore):
+    """
+    We do not use tankcore.TankCore itself
+    to let plugins know that they are executed under API server.
+
+    Typical check in the plugin looks like this:
+
+    def _core_with_tank_api(self):
+        core_class = str(self.core.__class__)
+        return core_class == 'yandex_tank_api.worker.TankCore'
+    """
     pass
+
 
 class TankWorker(object):
 
@@ -44,7 +55,8 @@ class TankWorker(object):
         if NEW_TANK:
             logging.info("Using yandextank.core as tank core")
         else:
-            logging.warning("Using obsolete /usr/lib/yandex-tank/tankcore.py as tank core")
+            logging.warning(
+                "Using obsolete /usr/lib/yandex-tank/tankcore.py as tank core")
 
         # Parameters from manager
         self.tank_queue = tank_queue
@@ -72,8 +84,9 @@ class TankWorker(object):
 
         handler = logging.FileHandler(full_filename)
         handler.setLevel(loglevel)
-        handler.setFormatter(
-            logging.Formatter("%(asctime)s [%(levelname)s] %(name)s %(message)s"))
+        handler.setFormatter(logging.Formatter(
+            "%(asctime)s [%(levelname)s] %(name)s %(message)s"
+        ))
         logger.addHandler(handler)
 
     def __setup_logging(self):
@@ -139,22 +152,28 @@ class TankWorker(object):
                 self.log.error(
                     "No break sepcified in the recieved message from manager")
                 continue
-            br = msg['break']
+            brk = msg['break']
             # Check taht the name is valid
-            if br not in common.test_stage_order:
+            if brk not in common.test_stage_order:
                 self.log.error(
-                    "Manager requested break at an unknown stage: %s", br)
+                    "Manager requested break at an unknown stage: %s", brk)
             # Check that the break is later than br
-            elif common.is_A_earlier_than_B(br, self.break_at):
+            elif common.is_A_earlier_than_B(brk, self.break_at):
                 self.log.error(
-                    "Recieved break %s which is earlier than current next break %s", br, self.break_at)
+                    "Recieved break %s which is earlier than "
+                    "current next break %s", brk, self.break_at)
             else:
                 self.log.info(
-                    "Changing the next break from %s to %s", self.break_at, br)
-                self.break_at = br
+                    "Changing the next break from %s to %s", self.break_at, brk)
+                self.break_at = brk
                 return
 
-    def report_status(self, status='running', dump_status=True, stage_completed=False):
+    def report_status(
+            self,
+            status='running',
+            dump_status=True,
+            stage_completed=False
+    ):
         """Report status to manager and dump status.json, if required"""
         msg = {'status': status,
                'session': self.session,
@@ -168,7 +187,10 @@ class TankWorker(object):
         self.manager_queue.put(msg)
         if dump_status:
             json.dump(
-                msg, open(os.path.join(self.working_dir, 'status.json'), 'w'), indent=4)
+                msg,
+                open(os.path.join(self.working_dir, 'status.json'), 'w'),
+                indent=4
+            )
 
     def process_failure(self, reason, dump_status=True):
         """
@@ -182,14 +204,23 @@ class TankWorker(object):
         self.report_status(dump_status=dump_status)
         self.break_at = 'finished'
 
-    def set_stage(self, stage, status='running', dump_status=True, stage_completed=False):
+    def set_stage(
+            self,
+            stage,
+            status='running',
+            dump_status=True,
+            stage_completed=False
+    ):
         """Unconditionally switch stage and report status to manager"""
         self.stage = stage
         self.report_status(
             status, dump_status=dump_status, stage_completed=stage_completed)
 
     def next_stage(self, stage, dump_status=True):
-        """Report stage completion and switch to the next test stage if allowed"""
+        """
+        Report stage completion.
+        Switch to the next test stage if allowed.
+        """
 
         self.report_status(
             'running', dump_status=dump_status, stage_completed=True)
@@ -261,16 +292,25 @@ class TankWorker(object):
                     self.process_failure("Interrupted")
                 except Exception as ex:
                     self.process_failure(
-                        "Exception while waiting for permission to unlock:" + traceback.format_exc(ex))
+                        "Exception while waiting for permission to unlock:" +
+                        traceback.format_exc(ex))
 
                 self.core.release_lock()
                 self.set_stage('finished', stage_completed=True)
-                self.report_status(status='failed' if self.failures else 'success',
-                                   stage_completed=True)
+                self.report_status(
+                    status='failed' if self.failures else 'success',
+                    stage_completed=True)
         self.log.info("Done performing test with code %s", self.retcode)
 
 
-def run(tank_queue, manager_queue, work_dir, session, test, ignore_machine_defaults):
+def run(
+        tank_queue,
+        manager_queue,
+        work_dir,
+        session,
+        test,
+        ignore_machine_defaults
+):
     """
     Target for tank process.
     This is the only function from this module ever used by Manager.
