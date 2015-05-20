@@ -115,7 +115,7 @@ class TankWorker(object):
                     self.log.debug("Adding config file: %s", config_file)
                     configs += [config_file]
         except OSError:
-            self.log.error("Failed to get configs from %s", config_dir)
+            self.log.warning("Failed to get configs from %s", config_dir, exc_info=True)
 
         return configs
 
@@ -150,7 +150,7 @@ class TankWorker(object):
             # Check that there is a break in the message
             if 'break' not in msg:
                 self.log.error(
-                    "No break sepcified in the recieved message from manager")
+                    "No break specified in the recieved message from manager")
                 continue
             brk = msg['break']
             # Check taht the name is valid
@@ -197,7 +197,7 @@ class TankWorker(object):
         Act on failure of current test stage:
         - log it
         - report to manager
-        - remove break (otherwise we might wait at end/postprocess!!!)
+        - remove break (otherwise we might get stuck at end/postprocess!!!)
         """
         self.log.error("Failure in stage %s:\n%s", self.stage, reason)
         self.failures.append({'stage': self.stage, 'reason': reason})
@@ -268,7 +268,7 @@ class TankWorker(object):
             self.process_failure("Interrupted")
 
         except Exception as ex:
-            self.log.error("Exception occured, trying to exit gracefully...")
+            self.log.exception("Exception occured, trying to exit gracefully...")
             self.process_failure("Exception:" + traceback.format_exc(ex))
 
         finally:
