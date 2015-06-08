@@ -51,7 +51,7 @@ class TankWorker(object):
 
     def __init__(
             self, tank_queue, manager_queue, working_dir,
-            session, test, ignore_machine_defaults):
+            test_id, ignore_machine_defaults):
         if NEW_TANK:
             logging.info("Using yandextank.core as tank core")
         else:
@@ -62,8 +62,7 @@ class TankWorker(object):
         self.tank_queue = tank_queue
         self.manager_queue = manager_queue
         self.working_dir = working_dir
-        self.session = session
-        self.test = test
+        self.test_id = test_id
         self.ignore_machine_defaults = ignore_machine_defaults
 
         # State variables
@@ -176,8 +175,8 @@ class TankWorker(object):
     ):
         """Report status to manager and dump status.json, if required"""
         msg = {'status': status,
-               'session': self.session,
-               'test': self.test,
+               'session': self.test_id,
+               'test': self.test_id,
                'current_stage': self.stage,
                'stage_completed': stage_completed,
                'break': self.break_at,
@@ -307,8 +306,7 @@ def run(
         tank_queue,
         manager_queue,
         work_dir,
-        session,
-        test,
+        test_id,
         ignore_machine_defaults
 ):
     """
@@ -325,4 +323,4 @@ def run(
     os.chdir(work_dir)
     TankWorker(
         tank_queue, manager_queue, work_dir,
-        session, test, ignore_machine_defaults).perform_test()
+        test_id, ignore_machine_defaults).perform_test()
