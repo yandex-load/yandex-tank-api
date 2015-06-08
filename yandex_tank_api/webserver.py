@@ -1,46 +1,50 @@
 #!/usr/bin/env python
+"""
+Yandex.Tank HTTP API: request handling code
+"""
 
-import logging
 import tornado.ioloop
 import tornado.web
 try:
     from pyjade.ext.tornado import patch_tornado
     patch_tornado()
-    USE_JADE=True
-except:
-    USE_JADE=False
+    USE_JADE = True
+except:  # pylint: disable=W0702
+    USE_JADE = False
 
 import os.path
 import os
 import json
 import uuid
 import multiprocessing
+import datetime
 
-import common
+import yandex_tank_api.common as common
 
-from tornado import template
-
-
-# TODO: make it configurable
+# TODO: make transfer size limit configurable
 TRANSFER_SIZE_LIMIT = 128 * 1024
 
 
-class APIHandler(tornado.web.RequestHandler):
+class APIHandler(tornado.web.RequestHandler):  # pylint: disable=R0904
 
     """
     Parent class for API handlers
     """
 
-    def initialize(self, out_queue, sessions, working_dir):
+    def initialize(self, out_queue, sessions, working_dir):  # pylint: disable=W0221
         """
         sessions
             dict: session_id->session_status
         """
+        # pylint: disable=W0201
         self.out_queue = out_queue
         self.sessions = sessions
         self.working_dir = working_dir
 
     def reply_json(self, status_code, reply):
+        """
+        Reply with a json and a specified code
+        """
         if status_code != 418:
             self.set_status(status_code)
         else:
@@ -62,63 +66,50 @@ class APIHandler(tornado.web.RequestHandler):
             self.reply_json(status_code, {'reason': self._reason})
 
 
-class RunHandler(APIHandler):
+class RunHandler(APIHandler):  # pylint: disable=R0904
+
+    """
+    Handles POST /run and get /run
+    """
 
     def post(self):
 
-        test_id = self.get_argument("test", uuid.uuid4().hex)
+        offered_test_id = self.get_argument("test", uuid.uuid4().hex)
         breakpoint = self.get_argument("break", "finished")
-        session_id = uuid.uuid4().hex
         config = self.request.body
 
         # Check existing sessions
-        running_session = None
-        conflict_session = None
-        for s in self.sessions.values():
-            if s['status'] not in ['success', 'failed']:
-                running_session = s
-            if s['test'] == test_id:
-                conflict_session = s
+        running_test = None
+        for test in self.sessions.values():
+            if test['status'] not in ['success', 'failed']:
+                running_test = test
 
-        # 400 if invalid breakpoint
-        if not common.is_valid_break(breakpoint):
-            self.reply_json(400,
-                            {'reason': 'Specified break is not a valid test stage name.',
-                             'hint': {'breakpoints': common.get_valid_breaks()}
-                             }
-                            )
-            return
-
-        # 409 if session with this test_id is already running
-        if conflict_session is not None:
-            reply = {'reason': 'The test with this ID is already running.'}
-            reply.update(conflict_session)
-            self.reply_json(409, reply)
-            return
-
-        # 409 if finished test with this test_id exists
-        test_status_file = os.path.join(
-            self.working_dir, test_id, 'status.json')
-        if os.path.exists(test_status_file):
-            reply = {'reason': 'The test with this ID has already finished.'}
-            reply.update(json.load(open(test_status_file)))
-            self.reply_json(409, reply)
-            return
-
-        # 503 if any running session exists (but no test_id conflict)
-        if running_session is not None:
-            reply = {'reason': 'Another session is already running.'}
-            reply.update(running_session)
+        # 503 if any running session exists
+        if running_test is not None:
+            reply = {'reason': 'Another test is already running.'}
+            reply.update(running_test)
             self.reply_json(503, reply)
             return
 
-        # Remember that such session exists
-        self.sessions[session_id] = {'status': 'starting',
-                                     'break': breakpoint,
-                                     'test': test_id}
+        # 400 if invalid breakpoint
+        if not common.is_valid_break(breakpoint):
+            self.reply_json(
+                400,
+                {'reason': 'Specified break is not a valid test stage name.',
+                 'hint': {'breakpoints': common.get_valid_breaks()}}
+            )
+            return
 
+        test_id = self._generate_test_id(offered_test_id)
+
+        # Remember that such session exists
+        self.sessions[test_id] = {
+            'status': 'starting',
+            'break': breakpoint,
+            'test': test_id
+        }
         # Post run command to manager queue
-        self.out_queue.put({'session': session_id,
+        self.out_queue.put({'session': test_id,
                             'cmd': 'run',
                             'break': breakpoint,
                             'test': test_id,
@@ -126,8 +117,28 @@ class RunHandler(APIHandler):
 
         self.reply_json(200, {
             "test": test_id,
-            "session": session_id,
+            "session": test_id,
         })
+
+    def _generate_test_id(self, offered_id):
+        """
+        Should only be used if no tests are running
+        """
+        if not offered_id:
+            offered_id = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        postfix = ''
+        n_attempt = 0
+        while True:
+            test_id = offered_id + postfix
+            test_status_file = os.path.join(
+                self.working_dir,
+                test_id,
+                'status.json'
+            )
+            if not os.path.exists(test_status_file):
+                return test_id
+            n_attempt += 1
+            postfix = '_' + str(n_attempt)
 
     def get(self):
         breakpoint = self.get_argument("break", "finished")
@@ -136,10 +147,12 @@ class RunHandler(APIHandler):
 
         # 400 if invalid breakpoint
         if not common.is_valid_break(breakpoint):
-            self.reply_json(400, {'reason': 'Specified break is not a valid test stage name.',
-                                  'hint':
-                                  {'breakpoints': common.get_valid_breaks()}
-                                  })
+            self.reply_json(
+                400, {
+                    'reason': 'Specified break is not a valid test stage name.',
+                    'hint':
+                    {'breakpoints': common.get_valid_breaks()}
+                })
             return
 
         # 404 if no such session
@@ -156,7 +169,8 @@ class RunHandler(APIHandler):
             return
 
         # 418 if in higher state or not running
-        if status_dict['status'] == 'success' or common.is_A_earlier_than_B(breakpoint, status_dict['break']):
+        if status_dict['status'] == 'success' or\
+                common.is_A_earlier_than_B(breakpoint, status_dict['break']):
             reply = {'reason': 'I am a teapot! I know nothing of time-travel!',
                      'hint': {'breakpoints': common.get_valid_breaks()}}
             reply.update(status_dict)
@@ -172,7 +186,11 @@ class RunHandler(APIHandler):
             200, {'reason': "Will try to set break before " + breakpoint})
 
 
-class StopHandler(APIHandler):
+class StopHandler(APIHandler):  # pylint: disable=R0904
+
+    """
+    Handles GET /stop
+    """
 
     def get(self):
         session_id = self.get_argument("session")
@@ -186,12 +204,11 @@ class StopHandler(APIHandler):
                     200, {'reason': 'Will try to stop tank process.'})
                 return
             else:
-                self.reply_json(409,
-                                {
-                                    'reason': 'This session is already stopped.',
-                                    'session': session_id,
-                                }
-                                )
+                self.reply_json(
+                    409,
+                    {'reason': 'This session is already stopped.',
+                     'session': session_id}
+                )
                 return
         else:
             self.reply_json(404, {
@@ -201,7 +218,11 @@ class StopHandler(APIHandler):
             return
 
 
-class StatusHandler(APIHandler):
+class StatusHandler(APIHandler):  # pylint: disable=R0904
+
+    """
+    Handle GET /status?
+    """
 
     def get(self):
         session_id = self.get_argument("session", default=None)
@@ -217,7 +238,11 @@ class StatusHandler(APIHandler):
             self.reply_json(200, self.sessions)
 
 
-class ArtifactHandler(APIHandler):
+class ArtifactHandler(APIHandler):  # pylint: disable=R0904
+
+    """
+    Handle GET /atrifact?
+    """
 
     def get(self):
         test_id = self.get_argument("test")
@@ -233,7 +258,11 @@ class ArtifactHandler(APIHandler):
 
         # look for status.json (any test that went past lock stage should have
         # it)
-        if not os.path.exists(os.path.join(self.working_dir, test_id, 'status.json')):
+        if not os.path.exists(os.path.join(
+                self.working_dir,
+                test_id,
+                'status.json'
+        )):
             self.reply_json(404, {
                 'reason': 'Test was not performed, no artifacts.',
                 'test': test_id,
@@ -246,9 +275,13 @@ class ArtifactHandler(APIHandler):
                 file_size = os.stat(filepath).st_size
 
                 if file_size > TRANSFER_SIZE_LIMIT and\
-                any(s['status'] not in ['success','failed'] and\
-                        common.is_A_earlier_than_B(s['current_stage'],'postprocess') for s in self.sessions.values()):
-                    self.reply_json(503,{
+                    any(s['status'] not in ['success', 'failed'] and
+                        common.is_A_earlier_than_B(
+                            s['current_stage'],
+                            'postprocess')
+                        for s in self.sessions.values()
+                        ):
+                    self.reply_json(503, {
                         'reason': 'File is too large and test is running',
                         'test': test_id,
                         'filename': filename,
@@ -258,8 +291,8 @@ class ArtifactHandler(APIHandler):
                     return
                 else:
                     self.set_header("Content-type", "application/octet-stream")
-                    with open(filepath, 'rb') as f:
-                        data = f.read()
+                    with open(filepath, 'rb') as artifact_file:
+                        data = artifact_file.read()
                         self.write(data)
                     self.finish()
                     return
@@ -279,16 +312,21 @@ class ArtifactHandler(APIHandler):
             self.reply_json(200, onlyfiles)
 
 
-class StaticHandler(tornado.web.RequestHandler):
+class StaticHandler(tornado.web.RequestHandler):  # pylint: disable=R0904
 
-    def initialize(self, template):
-        self.template = template
+    """
+    Handle /manager.html
+    """
+
+    def initialize(self, templ):  # pylint: disable=W0221
+        self.template = templ  # pylint: disable=W0201
 
     def get(self):
         self.render(self.template)
 
 
 class ApiServer(object):
+    """ API server class"""
 
     def __init__(self, in_queue, out_queue, working_dir, debug=False):
         self.in_queue = in_queue
@@ -301,27 +339,28 @@ class ApiServer(object):
             working_dir=self.working_dir,
         )
 
-        handlers=[
+        handlers = [
             (r"/run", RunHandler, handler_params),
             (r"/stop", StopHandler, handler_params),
             (r"/status", StatusHandler, handler_params),
             (r"/artifact", ArtifactHandler, handler_params)
-            ]
+        ]
 
         if USE_JADE:
             handlers.append(
                 (r"/manager\.html$", StaticHandler,
-                {"template": "manager.jade"})
-                )
- 
+                 {"template": "manager.jade"})
+            )
+
         self.app = tornado.web.Application(
             handlers,
             template_path=os.path.join(os.path.dirname(__file__), "templates"),
             static_path=os.path.join(os.path.dirname(__file__), "static"),
             debug=debug,
-            )
+        )
 
     def update_status(self):
+        """Read status messages from manager"""
         try:
             while True:
                 message = self.in_queue.get_nowait()
@@ -333,6 +372,9 @@ class ApiServer(object):
             pass
 
     def serve(self):
+        """
+        Run tornado ioloop
+        """
         self.app.listen(8888)
         ioloop = tornado.ioloop.IOLoop.instance()
         update_cb = tornado.ioloop.PeriodicCallback(
