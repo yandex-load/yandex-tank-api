@@ -243,6 +243,32 @@ class StatusHandler(APIHandler):  # pylint: disable=R0904
             self.reply_json(200, self.sessions)
 
 
+class UploadHandler(APIHandler):  # pylint: disable=R0904
+
+    """
+    Handles POST /upload
+    """
+
+    def post(self):
+        session_id = self.get_argument("session")
+        if session_id not in self.sessions or\
+                self.sessions[session_id]['status'] in ['success', 'failed']:
+            self.reply_json(
+                404,
+                {'reason': 'Specified session is not running'})
+            return
+
+        filename = self.get_argument("filename")
+        contents = self.request.body
+
+        filepath = os.path.join(self.working_dir, session_id, filename)
+
+        with open(filepath, 'rb') as upload_file:
+            upload_file.write(contents)
+
+        self.reply_json(200, {'reason': 'file uploaded'})
+
+
 class ArtifactHandler(APIHandler):  # pylint: disable=R0904
 
     """
@@ -350,7 +376,9 @@ class ApiServer(object):
             (r"/run", RunHandler, handler_params),
             (r"/stop", StopHandler, handler_params),
             (r"/status", StatusHandler, handler_params),
-            (r"/artifact", ArtifactHandler, handler_params)
+            (r"/artifact", ArtifactHandler, handler_params),
+            (r"/upload", UploadHandler, handler_params)
+
         ]
 
         if USE_JADE:
