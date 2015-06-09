@@ -99,46 +99,49 @@ class RunHandler(APIHandler):  # pylint: disable=R0904
                  'hint': {'breakpoints': common.get_valid_breaks()}}
             )
             return
+        try:
+            session_id = self._generate_session_id(offered_test_id)
+        except RuntimeError as err:
+            self.reply_json(503, {'reason': str(err)})
+            return
 
-        test_id = self._generate_test_id(offered_test_id)
 
         # Remember that such session exists
-        self.sessions[test_id] = {
+        self.sessions[session_id] = {
             'status': 'starting',
             'break': breakpoint,
-            'test': test_id
+            'test': session_id
         }
         # Post run command to manager queue
-        self.out_queue.put({'session': test_id,
+        self.out_queue.put({'session': session_id,
                             'cmd': 'run',
                             'break': breakpoint,
-                            'test': test_id,
+                            'test': session_id,
                             'config': config})
 
         self.reply_json(200, {
-            "test": test_id,
-            "session": test_id,
+            "test": session_id,
+            "session": session_id,
         })
 
-    def _generate_test_id(self, offered_id):
+    def _generate_session_id(self, offered_id):
         """
         Should only be used if no tests are running
         """
         if not offered_id:
             offered_id = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        postfix = ''
-        n_attempt = 0
-        while True:
-            test_id = offered_id + postfix
+        #This should use one or two attempts in typical cases
+        for n_attempt in xrange(10000000000):
+            session_id = "%s_%10d" % (offered_id, n_attempt)
             test_status_file = os.path.join(
                 self.working_dir,
-                test_id,
+                session_id,
                 'status.json'
             )
             if not os.path.exists(test_status_file):
-                return test_id
+                return session_id
             n_attempt += 1
-            postfix = '_' + str(n_attempt)
+        raise RuntimeError("Failed to generate session id")
 
     def get(self):
         breakpoint = self.get_argument("break", "finished")
@@ -245,14 +248,15 @@ class ArtifactHandler(APIHandler):  # pylint: disable=R0904
     """
 
     def get(self):
-        test_id = self.get_argument("test")
+        session_id = self.get_argument("test", self.get_argument("session"))
+
         filename = self.get_argument("filename", None)
 
         # look for test directory
-        if not os.path.exists(os.path.join(self.working_dir, test_id)):
+        if not os.path.exists(os.path.join(self.working_dir, session_id)):
             self.reply_json(404, {
                 'reason': 'No test with this ID found',
-                'test': test_id,
+                'test': session_id,
             })
             return
 
@@ -260,17 +264,17 @@ class ArtifactHandler(APIHandler):  # pylint: disable=R0904
         # it)
         if not os.path.exists(os.path.join(
                 self.working_dir,
-                test_id,
+                session_id,
                 'status.json'
         )):
             self.reply_json(404, {
                 'reason': 'Test was not performed, no artifacts.',
-                'test': test_id,
+                'test': session_id,
             })
             return
 
         if filename:
-            filepath = os.path.join(self.working_dir, test_id, filename)
+            filepath = os.path.join(self.working_dir, session_id, filename)
             if os.path.exists(filepath):
                 file_size = os.stat(filepath).st_size
 
@@ -283,7 +287,7 @@ class ArtifactHandler(APIHandler):  # pylint: disable=R0904
                         ):
                     self.reply_json(503, {
                         'reason': 'File is too large and test is running',
-                        'test': test_id,
+                        'test': session_id,
                         'filename': filename,
                         'filesize': file_size,
                         'limit': TRANSFER_SIZE_LIMIT,
@@ -299,12 +303,12 @@ class ArtifactHandler(APIHandler):  # pylint: disable=R0904
             else:
                 self.reply_json(404, {
                     'reason': 'No such file',
-                    'test': test_id,
+                    'test': session_id,
                     'filename': filename,
                 })
                 return
         else:
-            basepath = os.path.join(self.working_dir, test_id)
+            basepath = os.path.join(self.working_dir, session_id)
             onlyfiles = [
                 f for f in os.listdir(basepath)
                 if os.path.isfile(os.path.join(basepath, f))

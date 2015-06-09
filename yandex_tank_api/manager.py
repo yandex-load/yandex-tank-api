@@ -20,7 +20,7 @@ class TankRunner(object):
     def __init__(self,
                  cfg,
                  manager_queue,
-                 test_id,
+                 session_id,
                  tank_config,
                  first_break):
         """
@@ -31,7 +31,7 @@ class TankRunner(object):
 
         # Create the working directory if necessary and check that the test was
         # not run yet
-        work_dir = cfg['tests_dir'] + '/' + test_id
+        work_dir = cfg['tests_dir'] + '/' + session_id
         try:
             os.makedirs(work_dir)
         except OSError as err:
@@ -57,7 +57,7 @@ class TankRunner(object):
             target=yandex_tank_api.worker.run,
             args=(
                 self.tank_queue, manager_queue,
-                work_dir, test_id,
+                work_dir, session_id,
                 ignore_machine_defaults
             ))
         self.tank_process.start()
@@ -121,29 +121,29 @@ class Manager(object):
         Should be called only when tank is not running
         """
         self.log.info("Resetting current session variables")
-        self.test_id = None
+        self.session_id = None
         self.tank_runner = None
         self.last_tank_status = 'not started'
 
     def manage_tank(self, msg):
         """Process command from webserver"""
 
-        if 'test_id' not in msg:
-            self.log.error("Bad command: test_id not specified")
+        if 'session' not in msg:
+            self.log.error("Bad command: session id not specified")
             return
 
         if msg['cmd'] == 'stop':
             # Stopping tank
-            if msg['test_id'] == self.test_id:
+            if msg['session'] == self.session_id:
                 self.tank_runner.stop()
             else:
                 self.log.error("Can stop only current test")
             return
 
         if msg['cmd'] == 'run':
-            if self.test_id is not None:
+            if self.session_id is not None:
                 # New break for running session
-                if msg['test_id'] != self.test_id:
+                if msg['session'] != self.session_id:
                     raise RuntimeError(
                         "Webserver requested to start session "
                         "when another one is already running"
@@ -155,20 +155,20 @@ class Manager(object):
                     self.log.error("Recieved run command without break")
             else:
                 # Starting new session
-                if 'test_id' not in msg or 'config' not in msg:
+                if 'session' not in msg or 'config' not in msg:
                     # Internal protocol error
                     self.log.error(
                         "Not enough data to start new session: "
                         "both config and test should be present"
                     )
                 else:
-                    self.test_id = msg['test_id']
+                    self.session_id = msg['session']
                     try:
                         self.tank_runner = TankRunner(
                             cfg=self.cfg,
                             manager_queue=self.manager_queue,
-                            session=self.test_id,
-                            test_id=self.test_id,
+                            session=self.session_id,
+                            session_id=self.session_id,
                             tank_config=msg['config'],
                             first_break=msg['break']
                         )
@@ -176,9 +176,9 @@ class Manager(object):
                         pass
                     except Exception as ex:
                         self.webserver_queue.put({
-                            'session': self.test_id,
+                            'session': self.session_id,
                             'status': 'failed',
-                            'test': self.test_id,
+                            'test': self.session_id,
                             'break': msg['break'],
                             'reason': 'Failed to start tank:\n'
                             + traceback.format_exc(ex)
@@ -212,8 +212,8 @@ class Manager(object):
                             or self.tank_runner.get_exitcode() != 0:
                         # Report unexpected death
                         self.webserver_queue.put({
-                            'session': self.test_id,
-                            'test': self.test_id,
+                            'session': self.session_id,
+                            'test': self.session_id,
                             'status': 'failed',
                             'reason': "Tank died unexpectedly. Last reported "
                             "status: % s, worker exitcode: % s" %
@@ -224,7 +224,7 @@ class Manager(object):
                     self.reset_session()
                     handle_tank_exit = False
 
-                elif self.test_id is not None\
+                elif self.session_id is not None\
                         and not self.tank_runner.is_alive():
                     # Tank has died.
                     # Fetch any remaining messages and wait one more timeout

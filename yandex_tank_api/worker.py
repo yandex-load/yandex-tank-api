@@ -51,7 +51,7 @@ class TankWorker(object):
 
     def __init__(
             self, tank_queue, manager_queue, working_dir,
-            test_id, ignore_machine_defaults):
+            session_id, ignore_machine_defaults):
         if NEW_TANK:
             logging.info("Using yandextank.core as tank core")
         else:
@@ -62,7 +62,7 @@ class TankWorker(object):
         self.tank_queue = tank_queue
         self.manager_queue = manager_queue
         self.working_dir = working_dir
-        self.test_id = test_id
+        self.session_id = session_id
         self.ignore_machine_defaults = ignore_machine_defaults
 
         # State variables
@@ -114,7 +114,11 @@ class TankWorker(object):
                     self.log.debug("Adding config file: %s", config_file)
                     configs += [config_file]
         except OSError:
-            self.log.warning("Failed to get configs from %s", config_dir, exc_info=True)
+            self.log.warning(
+                "Failed to get configs from %s",
+                config_dir,
+                exc_info=True
+                )
 
         return configs
 
@@ -175,8 +179,8 @@ class TankWorker(object):
     ):
         """Report status to manager and dump status.json, if required"""
         msg = {'status': status,
-               'session': self.test_id,
-               'test': self.test_id,
+               'session': self.session_id,
+               'test': self.session_id,
                'current_stage': self.stage,
                'stage_completed': stage_completed,
                'break': self.break_at,
@@ -306,7 +310,7 @@ def run(
         tank_queue,
         manager_queue,
         work_dir,
-        test_id,
+        session_id,
         ignore_machine_defaults
 ):
     """
@@ -323,4 +327,4 @@ def run(
     os.chdir(work_dir)
     TankWorker(
         tank_queue, manager_queue, work_dir,
-        test_id, ignore_machine_defaults).perform_test()
+        session_id, ignore_machine_defaults).perform_test()
