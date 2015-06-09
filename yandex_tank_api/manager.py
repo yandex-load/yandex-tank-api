@@ -1,6 +1,4 @@
-import os
 import os.path
-import errno
 import multiprocessing
 import logging
 import traceback
@@ -29,21 +27,11 @@ class TankRunner(object):
         """
         self.log = logging.getLogger(__name__)
 
-        # Create the working directory if necessary and check that the test was
-        # not run yet
-        work_dir = cfg['tests_dir'] + '/' + session_id
-        try:
-            os.makedirs(work_dir)
-        except OSError as err:
-            if err.errno != errno.EEXIST:
-                self.log.exception(
-                    "Failed to create working directory %s", work_dir)
-                raise
-            else:
-                if os.path.exists(work_dir + '/status.json'):
-                    raise RuntimeError("Test already exists")
+        work_dir = os.path.join(cfg['tests_dir'], session_id)
+        load_ini_path = os.path.join(work_dir, 'load.ini')
+
         # Create load.ini
-        tank_config_file = open(work_dir + '/load.ini', 'w')
+        tank_config_file = open(load_ini_path, 'w')
         tank_config_file.write(tank_config)
 
         # Create tank queue and put first break there
@@ -56,8 +44,10 @@ class TankRunner(object):
         self.tank_process = multiprocessing.Process(
             target=yandex_tank_api.worker.run,
             args=(
-                self.tank_queue, manager_queue,
-                work_dir, session_id,
+                self.tank_queue,
+                manager_queue,
+                work_dir,
+                session_id,
                 ignore_machine_defaults
             ))
         self.tank_process.start()

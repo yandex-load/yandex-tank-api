@@ -18,6 +18,7 @@ import json
 import uuid
 import multiprocessing
 import datetime
+import errno
 
 import yandex_tank_api.common as common
 
@@ -100,11 +101,10 @@ class RunHandler(APIHandler):  # pylint: disable=R0904
             )
             return
         try:
-            session_id = self._generate_session_id(offered_test_id)
+            session_id = self._create_session_dir(offered_test_id)
         except RuntimeError as err:
             self.reply_json(503, {'reason': str(err)})
             return
-
 
         # Remember that such session exists
         self.sessions[session_id] = {
@@ -124,21 +124,23 @@ class RunHandler(APIHandler):  # pylint: disable=R0904
             "session": session_id,
         })
 
-    def _generate_session_id(self, offered_id):
+    def _create_session_dir(self, offered_id):
         """
+        Returns generated session id
         Should only be used if no tests are running
         """
         if not offered_id:
             offered_id = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        #This should use one or two attempts in typical cases
+        # This should use one or two attempts in typical cases
         for n_attempt in xrange(10000000000):
             session_id = "%s_%10d" % (offered_id, n_attempt)
-            test_status_file = os.path.join(
-                self.working_dir,
-                session_id,
-                'status.json'
-            )
-            if not os.path.exists(test_status_file):
+            session_dir = os.path.join(self.working_dir, session_id)
+            try:
+                os.makedirs(session_dir)
+            except OSError as err:
+                if err.errno != errno.EEXIST:
+                    raise RuntimeError("Failed to create session directory")
+            if not os.path.exists(os.path.join(session_dir, 'status.json')):
                 return session_id
             n_attempt += 1
         raise RuntimeError("Failed to generate session id")
@@ -330,6 +332,7 @@ class StaticHandler(tornado.web.RequestHandler):  # pylint: disable=R0904
 
 
 class ApiServer(object):
+
     """ API server class"""
 
     def __init__(self, in_queue, out_queue, working_dir, debug=False):
