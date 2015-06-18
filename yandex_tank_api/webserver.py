@@ -262,9 +262,11 @@ class UploadHandler(APIHandler):  # pylint: disable=R0904
         contents = self.request.body
 
         filepath = os.path.join(self.working_dir, session_id, filename)
+        tmp_path = filepath+str(uuid.uuid4())
 
-        with open(filepath, 'rb') as upload_file:
+        with open(tmp_path, 'rb') as upload_file:
             upload_file.write(contents)
+        os.rename(tmp_path, filepath)
 
         self.reply_json(200, {'reason': 'file uploaded'})
 
