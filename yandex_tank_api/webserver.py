@@ -18,12 +18,14 @@ import json
 import uuid
 import multiprocessing
 import datetime
+import time
 import errno
 
 import yandex_tank_api.common as common
 
 # TODO: make transfer size limit configurable
 TRANSFER_SIZE_LIMIT = 128 * 1024
+HEARTBEAT_INTERVAL = 600
 
 
 class APIHandler(tornado.web.RequestHandler):  # pylint: disable=R0904
@@ -32,15 +34,14 @@ class APIHandler(tornado.web.RequestHandler):  # pylint: disable=R0904
     Parent class for API handlers
     """
 
-    def initialize(self, out_queue, sessions, working_dir):  # pylint: disable=W0221
+    def initialize(self, server):  # pylint: disable=W0221
         """
         sessions
             dict: session_id->session_status
         """
         # pylint: disable=W0201
-        self.out_queue = out_queue
-        self.sessions = sessions
-        self.working_dir = working_dir
+        server.read_status_updates_status()
+        self.srv = server
 
     def reply_json(self, status_code, reply):
         """
@@ -53,6 +54,9 @@ class APIHandler(tornado.web.RequestHandler):  # pylint: disable=R0904
         self.set_header('Content-Type', 'application/json')
         reply_str = json.dumps(reply, indent=4)
         self.finish(reply_str)
+
+    def reply_reason(self, code, reason):
+        return self.reply_json(code, {'reason': reason})
 
     def write_error(self, status_code, **kwargs):
         if self.settings.get("debug"):
@@ -77,18 +81,13 @@ class RunHandler(APIHandler):  # pylint: disable=R0904
 
         offered_test_id = self.get_argument("test", uuid.uuid4().hex)
         breakpoint = self.get_argument("break", "finished")
+
         config = self.request.body
 
-        # Check existing sessions
-        running_session = None
-        for session in self.sessions.values():
-            if session['status'] not in ['success', 'failed']:
-                running_session = session
-
         # 503 if any running session exists
-        if running_session is not None:
+        if self.srv.running_id is not None:
             reply = {'reason': 'Another session is already running.'}
-            reply.update(running_session)
+            reply.update(self.srv.running_status)
             self.reply_json(503, reply)
             return
 
@@ -101,46 +100,24 @@ class RunHandler(APIHandler):  # pylint: disable=R0904
             )
             return
         try:
-            session_id = self._create_session_dir(offered_test_id)
+            session_id = self.srv.create_session_dir(offered_test_id)
         except RuntimeError as err:
-            self.reply_json(503, {'reason': str(err)})
+            self.reply_reason(503, str(err))
             return
 
         # Remember that such session exists
-        self.sessions[session_id] = {
-            'status': 'starting',
-            'break': breakpoint
-        }
+        self.srv.set_session_status(
+            session_id,
+            {'status': 'starting', 'break': breakpoint}
+        )
         # Post run command to manager queue
-        self.out_queue.put({'session': session_id,
-                            'cmd': 'run',
-                            'break': breakpoint,
-                            'config': config})
+        self.srv.cmd({'session': session_id,
+                      'cmd': 'run',
+                      'break': breakpoint,
+                      'config': config})
 
-        self.reply_json(200, {
-            "session": session_id,
-        })
-
-    def _create_session_dir(self, offered_id):
-        """
-        Returns generated session id
-        Should only be used if no tests are running
-        """
-        if not offered_id:
-            offered_id = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        # This should use one or two attempts in typical cases
-        for n_attempt in xrange(10000000000):
-            session_id = "%s_%10d" % (offered_id, n_attempt)
-            session_dir = os.path.join(self.working_dir, session_id)
-            try:
-                os.makedirs(session_dir)
-            except OSError as err:
-                if err.errno != errno.EEXIST:
-                    raise RuntimeError("Failed to create session directory")
-            if not os.path.exists(os.path.join(session_dir, 'status.json')):
-                return session_id
-            n_attempt += 1
-        raise RuntimeError("Failed to generate session id")
+        self.srv.heartbeat(session_id)
+        self.reply_json(200, {"session": session_id})
 
     def get(self):
         breakpoint = self.get_argument("break", "finished")
@@ -158,10 +135,11 @@ class RunHandler(APIHandler):  # pylint: disable=R0904
             return
 
         # 404 if no such session
-        if not session_id in self.sessions:
-            self.reply_json(404, {'reason': 'No session with this ID.'})
+        try:
+            status_dict = self.srv.status(session_id)
+        except KeyError:
+            self.reply_reason(404, 'No session with this ID.')
             return
-        status_dict = self.sessions[session_id]
 
         # 500 if failed
         if status_dict['status'] == 'failed':
@@ -180,12 +158,13 @@ class RunHandler(APIHandler):  # pylint: disable=R0904
             return
 
         # Post run command to manager queue
-        self.out_queue.put({'session': session_id,
-                            'cmd': 'run',
-                            'break': breakpoint})
+        self.srv.cmd({
+            'session': session_id,
+            'cmd': 'run',
+            'break': breakpoint})
 
-        self.reply_json(
-            200, {'reason': "Will try to set break before " + breakpoint})
+        self.srv.heartbeat(session_id)
+        self.reply_reason(200, "Will try to set break before " + breakpoint)
 
 
 class StopHandler(APIHandler):  # pylint: disable=R0904
@@ -196,27 +175,18 @@ class StopHandler(APIHandler):  # pylint: disable=R0904
 
     def get(self):
         session_id = self.get_argument("session")
-        if session_id in self.sessions:
-            if self.sessions[session_id]['status'] not in ['success', 'failed']:
-                self.out_queue.put({
-                    'cmd': 'stop',
-                    'session': session_id,
-                })
-                self.reply_json(
-                    200, {'reason': 'Will try to stop tank process.'})
-                return
-            else:
-                self.reply_json(
-                    409,
-                    {'reason': 'This session is already stopped.',
-                     'session': session_id}
-                )
-                return
+
+        try:
+            _ = self.srv.status(session_id)
+        except KeyError:
+            self.reply_reason(404, 'No session with this ID.')
+            return
+        if self.srv.running_id == session_id:
+            self.srv.cmd({'cmd': 'stop', 'session': session_id})
+            self.reply_reason(200, 'Will try to stop tank process.')
+            return
         else:
-            self.reply_json(404, {
-                'reason': 'No session with this ID.',
-                'session': session_id,
-            })
+            self.reply_reason(409, 'This session is already stopped.')
             return
 
 
@@ -229,15 +199,14 @@ class StatusHandler(APIHandler):  # pylint: disable=R0904
     def get(self):
         session_id = self.get_argument("session", default=None)
         if session_id:
-            if session_id in self.sessions:
-                self.reply_json(200, self.sessions[session_id])
-            else:
-                self.reply_json(404, {
-                    'reason': 'No session with this ID.',
-                    'session': session_id,
-                })
+            try:
+                status = self.srv.status(session_id)
+            except KeyError:
+                self.reply_reason(404, 'No session with this ID.')
+            self.srv.heartbeat(session_id)
+            self.reply_json(200, status)
         else:
-            self.reply_json(200, self.sessions)
+            self.reply_json(200, self.srv.all_sessions)
 
 
 class UploadHandler(APIHandler):  # pylint: disable=R0904
@@ -248,24 +217,22 @@ class UploadHandler(APIHandler):  # pylint: disable=R0904
 
     def post(self):
         session_id = self.get_argument("session")
-        if session_id not in self.sessions or\
-                self.sessions[session_id]['status'] in ['success', 'failed']:
-            self.reply_json(
-                404,
-                {'reason': 'Specified session is not running'})
+        if session_id != self.srv.running_id:
+            self.reply_reason(404, 'Specified session is not running')
             return
 
         filename = self.get_argument("filename")
         contents = self.request.body
 
-        filepath = os.path.join(self.working_dir, session_id, filename)
-        tmp_path = filepath+str(uuid.uuid4())
+        filepath = self.srv.session_file(session_id, filename)
+        tmp_path = filepath + str(uuid.uuid4())
 
         with open(tmp_path, 'rb') as upload_file:
             upload_file.write(contents)
         os.rename(tmp_path, filepath)
 
-        self.reply_json(200, {'reason': 'file uploaded'})
+        self.srv.heartbeat(session_id)
+        self.reply_reason(200, 'File uploaded')
 
 
 class ArtifactHandler(APIHandler):  # pylint: disable=R0904
@@ -278,64 +245,65 @@ class ArtifactHandler(APIHandler):  # pylint: disable=R0904
         session_id = self.get_argument("session")
 
         filename = self.get_argument("filename", None)
+        maxsize = self.get_argument("maxsize", None)
 
         # look for test directory
-        if not os.path.exists(os.path.join(self.working_dir, session_id)):
-            self.reply_json(404, {
-                'reason': 'No session with this ID found',
-            })
+        if not os.path.exists(self.srv.session_dir(session_id)):
+            self.reply_reason(404, 'No session with this ID found')
             return
 
         # look for status.json (any test that went past lock stage should have
         # it)
-        if not os.path.exists(os.path.join(
-                self.working_dir,
-                session_id,
-                'status.json'
-        )):
-            self.reply_json(404, {
-                'reason': 'Test was not performed, no artifacts.',
-            })
+        if self.srv.is_empty_session(session_id):
+            self.reply_reason(404, 'Test was not performed, no artifacts.')
             return
 
-        if filename:
-            filepath = os.path.join(self.working_dir, session_id, filename)
-            if not os.path.exists(filepath):
-                self.reply_json(404, {'reason': 'No such file',})
-                return
-            file_size = os.stat(filepath).st_size
-
-            if file_size > TRANSFER_SIZE_LIMIT:
-                for running_session, session_data in self.sessions.items():
-                    if session_data['status'] not in ['success', 'failed']\
-                        and common.is_A_earlier_than_B(
-                                 session_data['current_stage'],
-                                 'postprocess'
-                                 ):
-                        self.reply_json(503, {
-                            'reason':
-                              'File is too large and a session is running',
-                            'running_session': running_session,
-                            'filesize': file_size,
-                            'limit': TRANSFER_SIZE_LIMIT
-                            })
-                        return
-            self.set_header("Content-type", "application/octet-stream")
-            with open(filepath, 'rb') as artifact_file:
-                while True:
-                    data = artifact_file.read(TRANSFER_SIZE_LIMIT)
-                    if not data:
-                        break
-                    self.write(data)
-                    self.flush()
-            self.finish()
-        else:
-            basepath = os.path.join(self.working_dir, session_id)
+        if not filename:
+            basepath = self.srv.session_dir(session_id)
             onlyfiles = [
                 f for f in os.listdir(basepath)
                 if os.path.isfile(os.path.join(basepath, f))
             ]
             self.reply_json(200, onlyfiles)
+            return
+
+        filepath = self.srv.session_file(session_id, filename)
+        if not os.path.exists(filepath):
+            self.reply_reason(404, 'No such file in test artifacts')
+            return
+        file_size = os.stat(filepath).st_size
+
+        if maxsize is not None and file_size > maxsize:
+            self.reply_json(409,
+                            {'reason': "File does not fit into the size limit specified by the client.",
+                             'filesize': file_size})
+            return
+
+        if file_size > TRANSFER_SIZE_LIMIT:
+            try:
+                cur_stage = self.srv.running_status['current_stage']
+            except KeyError:
+                pass
+            else:
+                if common.is_A_earlier_than_B(cur_stage, 'postprocess'):
+                    self.reply_json(503, {
+                        'reason':
+                        'File is too large and a session is running',
+                        'running_session': self.srv.running_id,
+                        'filesize': file_size,
+                        'limit': TRANSFER_SIZE_LIMIT
+                    })
+                    return
+        self.set_header("Content-type", "application/octet-stream")
+        with open(filepath, 'rb') as artifact_file:
+            while True:
+                data = artifact_file.read(TRANSFER_SIZE_LIMIT)
+                if not data:
+                    break
+                self.write(data)
+                self.flush()
+        self.finish()
+        self.srv.heartbeat(session_id)
 
 
 class StaticHandler(tornado.web.RequestHandler):  # pylint: disable=R0904
@@ -356,15 +324,14 @@ class ApiServer(object):
     """ API server class"""
 
     def __init__(self, in_queue, out_queue, working_dir, debug=False):
-        self.in_queue = in_queue
-        self.out_queue = out_queue
-        self.working_dir = working_dir
-        self.sessions = {}
-        handler_params = dict(
-            out_queue=self.out_queue,
-            sessions=self.sessions,
-            working_dir=self.working_dir,
-        )
+        self._in_queue = in_queue
+        self._out_queue = out_queue
+        self._working_dir = working_dir
+        self._running_id = None
+        self._sessions = {}
+        self._hb_deadline = None
+
+        handler_params = dict(self)
 
         handlers = [
             (r"/run", RunHandler, handler_params),
@@ -388,17 +355,89 @@ class ApiServer(object):
             debug=debug,
         )
 
-    def update_status(self):
-        """Read status messages from manager"""
+    def read_status_updates(self):
+        """Read status messages from manager and check heartbeat"""
         try:
             while True:
-                message = self.in_queue.get_nowait()
+                message = self._in_queue.get_nowait()
                 session_id = message.get('session')
                 del message['session']
-                # Test ID and break are always present in message from Manager
-                self.sessions[session_id] = message
+                self.set_session_status(session_id, message)
         except multiprocessing.queues.Empty:
             pass
+        if self._running_id and self._hb_deadline is not None\
+                and time.time() > self._hb_deadline:
+            self.cmd({'cmd': 'stop', 'session': self._running_id})
+
+    def set_session_status(self, session_id, new_status):
+        """Remember session status and change running_id"""
+
+        if new_status['status'] in ['success', 'failed']:
+            if self._running_id == session_id:
+                self._running_id = None
+        else:
+            self._running_id = session_id
+
+        self._sessions[session_id] = new_status
+
+    def heartbeat(self, session_id):
+        if session_id == self._running_id and self._running_id is not None:
+            self._hb_deadline = time.time() + HEARTBEAT_INTERVAL
+
+    def session_dir(self, session_id):
+        """Return working directory for given session id"""
+        return os.path.join(self._working_dir, session_id)
+
+    def session_file(self, session_id, filename):
+        """Return file path for given session id"""
+        return os.path.join(self._working_dir, session_id, filename)
+
+    def create_session_dir(self, offered_id):
+        """
+        Returns generated session id
+        Should only be used if no tests are running
+        """
+        if not offered_id:
+            offered_id = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        # This should use one or two attempts in typical cases
+        for n_attempt in xrange(10000000000):
+            session_id = "%s_%10d" % (offered_id, n_attempt)
+            session_dir = self.session_dir(session_id)
+            try:
+                os.makedirs(session_dir)
+            except OSError as err:
+                if err.errno != errno.EEXIST:
+                    raise RuntimeError("Failed to create session directory")
+            if self.is_empty_session(session_id):
+                return session_id
+            n_attempt += 1
+        raise RuntimeError("Failed to generate session id")
+
+    def is_empty_session(self, session_id):
+        """Return true if the session did not get past the lock stage"""
+        return not os.path.exists(self.session_file(session_id, 'status.json'))
+
+    def cmd(self, message):
+        """Put commad into manager queue"""
+        self._out_queue.put(message)
+
+    def all_sessions(self):
+        """Get session status by ID, can raise KeyError"""
+        return self._sessions
+
+    def status(self, session_id):
+        """Get session status by ID, can raise KeyError"""
+        return self._sessions[session_id]
+
+    @property
+    def running_id(self):
+        """Return ID of running session"""
+        return self._running_id
+
+    @property
+    def running_status(self):
+        """Return status of running session , can raise KeyError"""
+        return self.status(self._running_id)
 
     def serve(self):
         """
@@ -407,7 +446,7 @@ class ApiServer(object):
         self.app.listen(8888)
         ioloop = tornado.ioloop.IOLoop.instance()
         update_cb = tornado.ioloop.PeriodicCallback(
-            self.update_status, 100, ioloop)
+            self.read_status_updates, 300, ioloop)
         update_cb.start()
         ioloop.start()
 
