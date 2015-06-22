@@ -127,7 +127,7 @@ class Manager(object):
             if msg['session'] == self.session_id:
                 self.tank_runner.stop()
             else:
-                self.log.error("Can stop only current test")
+                self.log.error("Can stop only current session")
             return
 
         if msg['cmd'] == 'run':
@@ -168,7 +168,6 @@ class Manager(object):
                         self.webserver_queue.put({
                             'session': self.session_id,
                             'status': 'failed',
-                            'test': self.session_id,
                             'break': msg['break'],
                             'reason': 'Failed to start tank:\n'
                             + traceback.format_exc(ex)
@@ -203,7 +202,6 @@ class Manager(object):
                         # Report unexpected death
                         self.webserver_queue.put({
                             'session': self.session_id,
-                            'test': self.session_id,
                             'status': 'failed',
                             'reason': "Tank died unexpectedly. Last reported "
                             "status: % s, worker exitcode: % s" %

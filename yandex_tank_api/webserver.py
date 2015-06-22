@@ -80,15 +80,15 @@ class RunHandler(APIHandler):  # pylint: disable=R0904
         config = self.request.body
 
         # Check existing sessions
-        running_test = None
-        for test in self.sessions.values():
-            if test['status'] not in ['success', 'failed']:
-                running_test = test
+        running_session = None
+        for session in self.sessions.values():
+            if session['status'] not in ['success', 'failed']:
+                running_session = session
 
         # 503 if any running session exists
-        if running_test is not None:
-            reply = {'reason': 'Another test is already running.'}
-            reply.update(running_test)
+        if running_session is not None:
+            reply = {'reason': 'Another session is already running.'}
+            reply.update(running_session)
             self.reply_json(503, reply)
             return
 
@@ -109,18 +109,15 @@ class RunHandler(APIHandler):  # pylint: disable=R0904
         # Remember that such session exists
         self.sessions[session_id] = {
             'status': 'starting',
-            'break': breakpoint,
-            'test': session_id
+            'break': breakpoint
         }
         # Post run command to manager queue
         self.out_queue.put({'session': session_id,
                             'cmd': 'run',
                             'break': breakpoint,
-                            'test': session_id,
                             'config': config})
 
         self.reply_json(200, {
-            "test": session_id,
             "session": session_id,
         })
 
@@ -278,15 +275,14 @@ class ArtifactHandler(APIHandler):  # pylint: disable=R0904
     """
 
     def get(self):
-        session_id = self.get_argument("test", self.get_argument("session"))
+        session_id = self.get_argument("session")
 
         filename = self.get_argument("filename", None)
 
         # look for test directory
         if not os.path.exists(os.path.join(self.working_dir, session_id)):
             self.reply_json(404, {
-                'reason': 'No test with this ID found',
-                'test': session_id,
+                'reason': 'No session with this ID found',
             })
             return
 
@@ -299,44 +295,40 @@ class ArtifactHandler(APIHandler):  # pylint: disable=R0904
         )):
             self.reply_json(404, {
                 'reason': 'Test was not performed, no artifacts.',
-                'test': session_id,
             })
             return
 
         if filename:
             filepath = os.path.join(self.working_dir, session_id, filename)
-            if os.path.exists(filepath):
-                file_size = os.stat(filepath).st_size
-
-                if file_size > TRANSFER_SIZE_LIMIT and\
-                    any(s['status'] not in ['success', 'failed'] and
-                        common.is_A_earlier_than_B(
-                            s['current_stage'],
-                            'postprocess')
-                        for s in self.sessions.values()
-                        ):
-                    self.reply_json(503, {
-                        'reason': 'File is too large and test is running',
-                        'test': session_id,
-                        'filename': filename,
-                        'filesize': file_size,
-                        'limit': TRANSFER_SIZE_LIMIT,
-                    })
-                    return
-                else:
-                    self.set_header("Content-type", "application/octet-stream")
-                    with open(filepath, 'rb') as artifact_file:
-                        data = artifact_file.read()
-                        self.write(data)
-                    self.finish()
-                    return
-            else:
-                self.reply_json(404, {
-                    'reason': 'No such file',
-                    'test': session_id,
-                    'filename': filename,
-                })
+            if not os.path.exists(filepath):
+                self.reply_json(404, {'reason': 'No such file',})
                 return
+            file_size = os.stat(filepath).st_size
+
+            if file_size > TRANSFER_SIZE_LIMIT:
+                for running_session, session_data in self.sessions.items():
+                    if session_data['status'] not in ['success', 'failed']\
+                        and common.is_A_earlier_than_B(
+                                 session_data['current_stage'],
+                                 'postprocess'
+                                 ):
+                        self.reply_json(503, {
+                            'reason':
+                              'File is too large and a session is running',
+                            'running_session': running_session,
+                            'filesize': file_size,
+                            'limit': TRANSFER_SIZE_LIMIT
+                            })
+                        return
+            self.set_header("Content-type", "application/octet-stream")
+            with open(filepath, 'rb') as artifact_file:
+                while True:
+                    data = artifact_file.read(TRANSFER_SIZE_LIMIT)
+                    if not data:
+                        break
+                    self.write(data)
+                    self.flush()
+            self.finish()
         else:
             basepath = os.path.join(self.working_dir, session_id)
             onlyfiles = [
