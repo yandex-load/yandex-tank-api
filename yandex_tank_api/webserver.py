@@ -23,9 +23,8 @@ import errno
 
 import yandex_tank_api.common as common
 
-# TODO: make transfer size limit configurable
 TRANSFER_SIZE_LIMIT = 128 * 1024
-HEARTBEAT_INTERVAL = 600
+DEFAULT_HEARTBEAT_TIMEOUT = 600
 
 
 class APIHandler(tornado.web.RequestHandler):  # pylint: disable=R0904
@@ -81,6 +80,7 @@ class RunHandler(APIHandler):  # pylint: disable=R0904
 
         offered_test_id = self.get_argument("test", uuid.uuid4().hex)
         breakpoint = self.get_argument("break", "finished")
+        hb_timeout = self.get_argument("heartbeat", None)
 
         config = self.request.body
 
@@ -116,12 +116,14 @@ class RunHandler(APIHandler):  # pylint: disable=R0904
                       'break': breakpoint,
                       'config': config})
 
-        self.srv.heartbeat(session_id)
+        self.srv.heartbeat(session_id, hb_timeout)
         self.reply_json(200, {"session": session_id})
 
     def get(self):
         breakpoint = self.get_argument("break", "finished")
         session_id = self.get_argument("session")
+        hb_timeout = self.get_argument("heartbeat", None)
+
         self.set_header("Content-type", "application/json")
 
         # 400 if invalid breakpoint
@@ -163,7 +165,7 @@ class RunHandler(APIHandler):  # pylint: disable=R0904
             'cmd': 'run',
             'break': breakpoint})
 
-        self.srv.heartbeat(session_id)
+        self.srv.heartbeat(session_id, hb_timeout)
         self.reply_reason(200, "Will try to set break before " + breakpoint)
 
 
@@ -330,6 +332,7 @@ class ApiServer(object):
         self._running_id = None
         self._sessions = {}
         self._hb_deadline = None
+        self._hb_timeout = DEFAULT_HEARTBEAT_TIMEOUT
 
         handler_params = dict(self)
 
@@ -380,9 +383,15 @@ class ApiServer(object):
 
         self._sessions[session_id] = new_status
 
-    def heartbeat(self, session_id):
+    def heartbeat(self, session_id, new_timeout=None):
+        """
+        Set new heartbeat timeout (if sepcified)
+        and reset heartbeat deadline
+        """
+        if new_timeout is not None:
+            self._hb_timeout = new_timeout
         if session_id == self._running_id and self._running_id is not None:
-            self._hb_deadline = time.time() + HEARTBEAT_INTERVAL
+            self._hb_deadline = time.time() + self._hb_timeout
 
     def session_dir(self, session_id):
         """Return working directory for given session id"""
