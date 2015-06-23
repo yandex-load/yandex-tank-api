@@ -40,7 +40,13 @@ class TankCore(tankcore.TankCore):
         core_class = str(self.core.__class__)
         return core_class == 'yandex_tank_api.worker.TankCore'
     """
-    pass
+    def __init__(self, tank_worker):
+        super(TankCore, self).__init__()
+        self.tank_worker = tank_worker
+
+    def publish(self, publisher, key, value):
+        super(TankCore, self).publish(publisher, key, value)
+        self.tank_worker.report_status()
 
 
 class TankWorker(object):
@@ -73,7 +79,7 @@ class TankWorker(object):
 
         reload(logging)
         self.log = logging.getLogger(__name__)
-        self.core = TankCore()
+        self.core = TankCore(self)
 
     def __add_log_file(self, logger, loglevel, filename):
         """Adds FileHandler to logger; adds filename to artifacts"""
@@ -178,14 +184,16 @@ class TankWorker(object):
             stage_completed=False
     ):
         """Report status to manager and dump status.json, if required"""
-        msg = {'status': status,
-               'session': self.session_id,
-               'current_stage': self.stage,
-               'stage_completed': stage_completed,
-               'break': self.break_at,
-               'failures': self.failures,
-               'retcode': self.retcode
-               }
+        msg = {
+            'status': status,
+            'session': self.session_id,
+            'current_stage': self.stage,
+            'stage_completed': stage_completed,
+            'break': self.break_at,
+            'failures': self.failures,
+            'retcode': self.retcode,
+            'tank_status': self.core.status,
+        }
         self.manager_queue.put(msg)
         if dump_status:
             json.dump(
