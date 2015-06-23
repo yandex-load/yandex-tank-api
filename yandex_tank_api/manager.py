@@ -142,23 +142,22 @@ class Manager(object):
                     self.tank_runner.set_break(msg['break'])
                 else:
                     # Internal protocol error
-                    self.log.error("Recieved run command without break")
+                    self.log.error("Recieved run command without break:\n%s",json.dumps(msg))
             else:
                 # Starting new session
                 if 'session' not in msg or 'config' not in msg:
                     # Internal protocol error
                     self.log.error(
                         "Not enough data to start new session: "
-                        "both config and test should be present"
+                        "both config and test should be present:%s\n",
+                        json.dumps(msg)
                     )
                 else:
-                    self.session_id = msg['session']
                     try:
                         self.tank_runner = TankRunner(
                             cfg=self.cfg,
                             manager_queue=self.manager_queue,
-                            session=self.session_id,
-                            session_id=self.session_id,
+                            session_id=msg['session'],
                             tank_config=msg['config'],
                             first_break=msg['break']
                         )
@@ -166,12 +165,15 @@ class Manager(object):
                         pass
                     except Exception as ex:
                         self.webserver_queue.put({
-                            'session': self.session_id,
+                            'session': msg['session'],
                             'status': 'failed',
                             'break': msg['break'],
                             'reason': 'Failed to start tank:\n'
                             + traceback.format_exc(ex)
                         })
+                    else:
+                        self.session_id = msg['session']
+
 
             return
 

@@ -39,7 +39,7 @@ class APIHandler(tornado.web.RequestHandler):  # pylint: disable=R0904
             dict: session_id->session_status
         """
         # pylint: disable=W0201
-        server.read_status_updates_status()
+        server.read_status_updates()
         self.srv = server
 
     def reply_json(self, status_code, reply):
@@ -78,7 +78,7 @@ class RunHandler(APIHandler):  # pylint: disable=R0904
 
     def post(self):
 
-        offered_test_id = self.get_argument("test", uuid.uuid4().hex)
+        offered_test_id = self.get_argument("test", datetime.datetime.now().strftime('%Y%m%d%H%M%S'))
         breakpoint = self.get_argument("break", "finished")
         hb_timeout = self.get_argument("heartbeat", None)
 
@@ -102,7 +102,7 @@ class RunHandler(APIHandler):  # pylint: disable=R0904
         try:
             session_id = self.srv.create_session_dir(offered_test_id)
         except RuntimeError as err:
-            self.reply_reason(503, str(err))
+            self.reply_reason(500, str(err))
             return
 
         # Remember that such session exists
@@ -229,7 +229,7 @@ class UploadHandler(APIHandler):  # pylint: disable=R0904
         filepath = self.srv.session_file(session_id, filename)
         tmp_path = filepath + str(uuid.uuid4())
 
-        with open(tmp_path, 'rb') as upload_file:
+        with open(tmp_path, 'wb') as upload_file:
             upload_file.write(contents)
         os.rename(tmp_path, filepath)
 
@@ -334,7 +334,7 @@ class ApiServer(object):
         self._hb_deadline = None
         self._hb_timeout = DEFAULT_HEARTBEAT_TIMEOUT
 
-        handler_params = dict(self)
+        handler_params = dict(server=self)
 
         handlers = [
             (r"/run", RunHandler, handler_params),
@@ -410,7 +410,7 @@ class ApiServer(object):
             offered_id = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
         # This should use one or two attempts in typical cases
         for n_attempt in xrange(10000000000):
-            session_id = "%s_%10d" % (offered_id, n_attempt)
+            session_id = "%s_%010d" % (offered_id, n_attempt)
             session_dir = self.session_dir(session_id)
             try:
                 os.makedirs(session_dir)
@@ -430,6 +430,7 @@ class ApiServer(object):
         """Put commad into manager queue"""
         self._out_queue.put(message)
 
+    @property
     def all_sessions(self):
         """Get session status by ID, can raise KeyError"""
         return self._sessions
