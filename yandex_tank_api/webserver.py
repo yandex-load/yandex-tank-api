@@ -143,16 +143,13 @@ class RunHandler(APIHandler):  # pylint: disable=R0904
             self.reply_reason(404, 'No session with this ID.')
             return
 
-        # 500 if failed
-        if status_dict['status'] == 'failed':
-            reply = {'reason': 'Session failed.'}
-            reply.update(status_dict)
-            self.reply_json(500, reply)
+	if session_id!=self.srv.running_id:
+            self.reply_reason(418,
+                "I'm a teapot! Can't set break for session that's not running!")
             return
 
-        # 418 if in higher state or not running
-        if status_dict['status'] == 'success' or\
-                common.is_A_earlier_than_B(breakpoint, status_dict['break']):
+        # 418 if in higher state
+        if common.is_A_earlier_than_B(breakpoint, status_dict['break']):
             reply = {'reason': 'I am a teapot! I know nothing of time-travel!',
                      'hint': {'breakpoints': common.get_valid_breaks()}}
             reply.update(status_dict)
