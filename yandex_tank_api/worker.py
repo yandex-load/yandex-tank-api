@@ -281,8 +281,8 @@ class TankWorker(object):
 
         except InterruptTest as exc:
             self.process_failure("Interrupted")
-	    if exc.break_at_finish:
-                self.brek_at = 'finished'
+	    if exc.remove_break:
+                self.break_at = 'finished'
         except Exception as ex:
             self.log.exception("Exception occured, trying to exit gracefully...")
             self.process_failure("Exception:" + traceback.format_exc(ex))
@@ -298,7 +298,7 @@ class TankWorker(object):
                 self.retcode = self.core.plugins_post_process(self.retcode)
             except InterruptTest as exc:
                 self.process_failure("Interrupted")
-                if exc.break_at_finish:
+                if exc.remove_break:
                     self.brek_at = 'finished'
             except Exception as exc:
                 self.process_failure(
@@ -308,7 +308,7 @@ class TankWorker(object):
                     self.next_stage('unlock')
                 except InterruptTest as exc:
                     self.process_failure("Interrupted")
-                    if exc.break_at_finish:
+                    if exc.remove_break:
                         self.brek_at = 'finished'
                 except Exception as exc:
                     self.process_failure(
