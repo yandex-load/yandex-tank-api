@@ -1,4 +1,6 @@
 import os.path
+import os
+import signal
 import multiprocessing
 import logging
 import traceback
@@ -69,8 +71,9 @@ class TankRunner(object):
         return self.tank_process.join()
 
     def stop(self):
-        """Terminates the tank process"""
-        self.tank_process.terminate()
+        """Interrupts the tank process"""
+        if self.is_alive():
+            os.kill(self.tank_process.pid,signal.SIGINT)
 
     def __del__(self):
         self.stop()

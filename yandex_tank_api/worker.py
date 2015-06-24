@@ -30,6 +30,11 @@ except ImportError:
 import yandex_tank_api.common as common
 
 
+class InterruptTest(BaseException):
+    """Raised by sigterm handler"""
+    def __init__(self, remove_break=False):
+        self.remove_break = remove_break 
+
 class TankCore(tankcore.TankCore):
     """
     We do not use tankcore.TankCore itself
@@ -247,7 +252,7 @@ class TankWorker(object):
             self.next_stage('lock', dump_status=False)
             self.core.get_lock(force=False)
 
-        except KeyboardInterrupt:
+        except InterruptTest as exc:
             self.process_failure("Interrupted")
             self.report_status(
                 status='failed', dump_status=False)
@@ -274,9 +279,10 @@ class TankWorker(object):
             self.next_stage('poll')
             self.retcode = self.core.wait_for_finish()
 
-        except KeyboardInterrupt:
+        except InterruptTest as exc:
             self.process_failure("Interrupted")
-
+	    if exc.break_at_finish:
+                self.brek_at = 'finished'
         except Exception as ex:
             self.log.exception("Exception occured, trying to exit gracefully...")
             self.process_failure("Exception:" + traceback.format_exc(ex))
@@ -290,17 +296,21 @@ class TankWorker(object):
                 # Not sure if it is the desired behaviour
                 self.next_stage('postprocess')
                 self.retcode = self.core.plugins_post_process(self.retcode)
-            except KeyboardInterrupt:
+            except InterruptTest as exc:
                 self.process_failure("Interrupted")
-            except Exception as ex:
+                if exc.break_at_finish:
+                    self.brek_at = 'finished'
+            except Exception as exc:
                 self.process_failure(
                     "Exception while finising test:" + traceback.format_exc(ex))
             finally:
                 try:
                     self.next_stage('unlock')
-                except KeyboardInterrupt:
+                except InterruptTest as exc:
                     self.process_failure("Interrupted")
-                except Exception as ex:
+                    if exc.break_at_finish:
+                        self.brek_at = 'finished'
+                except Exception as exc:
                     self.process_failure(
                         "Exception while waiting for permission to unlock:" +
                         traceback.format_exc(ex))
@@ -312,9 +322,11 @@ class TankWorker(object):
                     stage_completed=True)
         self.log.info("Done performing test with code %s", self.retcode)
 
-def signal_handler(*_):
+def signal_handler(signum,_):
     """ required for everything to be released safely on SIGTERM and SIGINT"""
-    raise KeyboardInterrupt()
+    if signum==signal.SIGINT:
+        raise InterruptTest(remove_break=False)
+    raise InterruptTest(remove_break=True)
 
 
 def run(
