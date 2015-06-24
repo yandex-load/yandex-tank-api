@@ -206,13 +206,12 @@ class TankWorker(object):
         """
         Act on failure of current test stage:
         - log it
+        - add to failures list
         - report to manager
-        - remove break (otherwise we might get stuck at end/postprocess!!!)
         """
         self.log.error("Failure in stage %s:\n%s", self.stage, reason)
         self.failures.append({'stage': self.stage, 'reason': reason})
         self.report_status(dump_status=dump_status)
-        self.break_at = 'finished'
 
     def set_stage(
             self,

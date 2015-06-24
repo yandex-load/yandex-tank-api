@@ -359,7 +359,7 @@ class ApiServer(object):
         )
 
     def read_status_updates(self):
-        """Read status messages from manager and check heartbeat"""
+        """Read status messages from manager"""
         try:
             while True:
                 message = self._in_queue.get_nowait()
@@ -368,8 +368,15 @@ class ApiServer(object):
                 self.set_session_status(session_id, message)
         except multiprocessing.queues.Empty:
             pass
+
+    def check(self):
+	"""Read status messages from manager and check heartbeat"""
+        self.read_status_updates()	
+
         if self._running_id and self._hb_deadline is not None\
                 and time.time() > self._hb_deadline:
+            
+            self.cmd({'cmd': 'run', 'session': self._running_id, 'break':'finished'})
             self.cmd({'cmd': 'stop', 'session': self._running_id})
 
     def set_session_status(self, session_id, new_status):
@@ -456,7 +463,7 @@ class ApiServer(object):
         self.app.listen(8888)
         ioloop = tornado.ioloop.IOLoop.instance()
         update_cb = tornado.ioloop.PeriodicCallback(
-            self.read_status_updates, 300, ioloop)
+            self.check, 300, ioloop)
         update_cb.start()
         ioloop.start()
 
