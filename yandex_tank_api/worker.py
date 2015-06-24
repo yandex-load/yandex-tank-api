@@ -3,6 +3,7 @@ Tank worker process for yandex-tank-api
 Based on ConsoleWorker from yandex-tank
 """
 
+import signal
 import fnmatch
 import logging
 import os
@@ -311,6 +312,10 @@ class TankWorker(object):
                     stage_completed=True)
         self.log.info("Done performing test with code %s", self.retcode)
 
+def signal_handler(*_):
+    """ required for everything to be released safely on SIGTERM and SIGINT"""
+    raise KeyboardInterrupt()
+
 
 def run(
         tank_queue,
@@ -331,6 +336,8 @@ def run(
 
     """
     os.chdir(work_dir)
+    signal.signal(signal.SIGINT,signal_handler)
+    signal.signal(signal.SIGTERM,signal_handler)
     TankWorker(
         tank_queue, manager_queue, work_dir,
         session_id, ignore_machine_defaults).perform_test()
