@@ -1,2 +1,3 @@
 #!/bin/bash
 adduser --system lunapark
+#DEBHELPER#
