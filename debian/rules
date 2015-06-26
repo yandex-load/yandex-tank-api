@@ -4,6 +4,6 @@
 # Wed, 01 Apr 2015 14:39:21 +0300
 
 %:
-	dh $@ --with python2 --buildsystem=python_distutils
+	dh $@ --with python-virtualenv
 
 
