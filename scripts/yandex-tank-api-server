@@ -6,7 +6,11 @@ import pwd
 import signal
 
 import daemon
-import daemon.pidlockfile
+try:
+    import daemon.pidlockfile as plf
+except ImportError:
+    import lockfile.pidlockfile as plf
+
 
 import yandex_tank_api.manager
 
@@ -70,7 +74,7 @@ if __name__=='__main__':
             signal_map={signal.SIGINT : signal_handler,
                         signal.SIGTERM: signal_handler}
 
-            pidfile = daemon.pidlockfile.PIDLockFile("/var/run/lock/yandex-tank-api.pid")
+            pidfile = plf.PIDLockFile("/var/run/lock/yandex-tank-api.pid")
 
 
             with daemon.DaemonContext(uid=uid,
