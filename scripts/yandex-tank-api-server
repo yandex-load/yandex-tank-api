@@ -70,11 +70,7 @@ if __name__=='__main__':
             signal_map={signal.SIGINT : signal_handler,
                         signal.SIGTERM: signal_handler}
 
-            pidfile = daemon.pidlockfile.PIDLockFile("/var/run/lock/yandex-tank-api.pid")
-
-
             with daemon.DaemonContext(uid=uid,
-                                      pidfile=pidfile,
                                       detach_process=not options.nodetach_process,
                                       signal_map=signal_map
                                       ):
