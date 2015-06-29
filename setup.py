@@ -53,8 +53,8 @@ setup(
             'static/js/*.js',
             'static/js/vendor/ace/*.js',
             'static/js/vendor/*.js',
+            'config/*'
         ],
-        'yandex_tank_api': ['config/*'],
     },
     scripts=['scripts/yandex-tank-api-server'],
     test_suite='yandex-tank-api',

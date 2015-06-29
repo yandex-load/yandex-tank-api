@@ -6,7 +6,6 @@ import pwd
 import signal
 
 import daemon
-import daemon.pidlockfile
 
 import yandex_tank_api.manager
 
