@@ -7,7 +7,7 @@ Standards-Version: 3.9.5
 
 Package: yandex-tank-api
 Architecture: all
-Depends: ${misc:Depends}, ${python:Depends}, yandex-tank, python-daemon (>=1.5), python-tornado (>=3.1)
+Depends: ${misc:Depends}, ${python:Depends}, yandex-tank, python-daemon (>=1.5.5), python-tornado (>=3.1)
 Description: Yandex.Tank HTTP API
  ============
  yandex-tank-api
