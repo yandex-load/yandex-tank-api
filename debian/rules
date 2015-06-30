@@ -7,3 +7,6 @@
 	dh $@ --with python2 --buildsystem=python_distutils
 
 
+override_dh_python2:
+	dh_python2 --no-guessing-deps
+
