@@ -249,6 +249,9 @@ class TankWorker(object):
         """Perform the test sequence via TankCore"""
 
         try:
+            self.next_stage('init')
+            self.__preconfigure()
+
             self.next_stage('lock', dump_status=False)
             self.core.get_lock(force=False)
 
@@ -258,15 +261,14 @@ class TankWorker(object):
                 status='failed', dump_status=False)
             return
         except Exception:
-            self.process_failure('Failed to obtain lock', dump_status=False)
+            self.process_failure(
+                'Failed to initialize and lock',
+                dump_status=False)
             self.report_status(
                 status='failed', dump_status=False)
             return
 
         try:
-            self.next_stage('init')
-            self.__preconfigure()
-
             self.next_stage('configure')
             self.core.plugins_configure()
 
