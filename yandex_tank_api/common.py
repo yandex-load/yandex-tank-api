@@ -48,7 +48,7 @@ Status reported to HTTP Server (into webserver_queue):
     }
 """
 
-test_stage_order = ['lock', 'init', 'configure', 'prepare',
+test_stage_order = ['init','lock', 'configure', 'prepare',
                     'start', 'poll', 'end', 'postprocess', 'unlock', 'finished']
 
 
