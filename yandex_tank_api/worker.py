@@ -301,7 +301,7 @@ class TankWorker(object):
             except InterruptTest as exc:
                 self.process_failure("Interrupted")
                 if exc.remove_break:
-                    self.brek_at = 'finished'
+                    self.break_at = 'finished'
             except Exception as exc:
                 self.process_failure(
                     "Exception while finising test:" + traceback.format_exc(ex))
