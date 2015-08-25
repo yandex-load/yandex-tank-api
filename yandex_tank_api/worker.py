@@ -168,6 +168,12 @@ class TankWorker(object):
         self.core.get_lock()
         self.locked = True
 
+    def __end(self):
+        self.core.plugins_end_test(self.retcode)
+
+    def __postprocess(self):
+        self.core.plugins_post_process(self.retcode)
+ 
     def get_next_break(self):
         """
         Read the next break from tank queue
@@ -234,8 +240,8 @@ class TankWorker(object):
             'prepare': self.core.plugins_prepare_test,
             'start': self.core.plugins_start_test,
             'poll': self.core.wait_for_finish,
-            'end': self.core.plugins_end_test,
-            'postprocess': self.core.plugins_post_process,
+            'end': self.__end,
+            'postprocess': self.__postprocess,
             'unlock': self.core.release_lock}[stage]()
         self.retcode = new_retcode or self.retcode
 
@@ -252,7 +258,7 @@ class TankWorker(object):
             self.get_next_break()
         self.stage = stage
         self.report_status('running', False)
-        if common.TEST_STAGE_DEPS[stage] in self.done_stages:
+        if stage == common.TEST_STAGE_ORDER[0] or common.TEST_STAGE_DEPS[stage] in self.done_stages:
             try:
                 self._execute_stage(stage)
             except InterruptTest as exc:
@@ -272,8 +278,9 @@ class TankWorker(object):
 
     def perform_test(self):
         """Perform the test sequence via TankCore"""
-        for stage in common.TEST_STAGE_ORDER:
+        for stage in common.TEST_STAGE_ORDER[:-1]:
             self.next_stage(stage)
+        self.stage = 'finished'
         self.report_status('failed' if self.failures else 'success', True)
         self.log.info("Done performing test with code %s", self.retcode)
 
