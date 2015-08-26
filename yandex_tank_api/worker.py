@@ -169,10 +169,10 @@ class TankWorker(object):
         self.locked = True
 
     def __end(self):
-        self.core.plugins_end_test(self.retcode)
+        return self.core.plugins_end_test(self.retcode)
 
     def __postprocess(self):
-        self.core.plugins_post_process(self.retcode)
+        return self.core.plugins_post_process(self.retcode)
  
     def get_next_break(self):
         """
@@ -243,7 +243,8 @@ class TankWorker(object):
             'end': self.__end,
             'postprocess': self.__postprocess,
             'unlock': self.core.release_lock}[stage]()
-        self.retcode = new_retcode or self.retcode
+	if new_retcode is not None:
+            self.retcode = new_retcode
 
     def next_stage(self, stage):
         """
