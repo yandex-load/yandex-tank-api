@@ -58,7 +58,7 @@ class TankCore(tankcore.TankCore):
 
     def publish(self, publisher, key, value):
         super(TankCore, self).publish(publisher, key, value)
-        self.tank_worker.report_status()
+        self.tank_worker.report_status('running', 'false')
 
 
 class TankWorker(object):
@@ -173,7 +173,7 @@ class TankWorker(object):
 
     def __postprocess(self):
         return self.core.plugins_post_process(self.retcode)
- 
+
     def get_next_break(self):
         """
         Read the next break from tank queue
@@ -243,7 +243,7 @@ class TankWorker(object):
             'end': self.__end,
             'postprocess': self.__postprocess,
             'unlock': self.core.release_lock}[stage]()
-	if new_retcode is not None:
+        if new_retcode is not None:
             self.retcode = new_retcode
 
     def next_stage(self, stage):
