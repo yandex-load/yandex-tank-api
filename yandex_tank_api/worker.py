@@ -263,10 +263,12 @@ class TankWorker(object):
             try:
                 self._execute_stage(stage)
             except InterruptTest as exc:
+                self.retcode = self.retcode or 1
                 self.process_failure("Interrupted")
                 if exc.remove_break:
                     self.break_at = 'finished'
             except Exception as ex:
+                self.retcode = self.retcode or 1
                 self.log.exception(
                     "Exception occured, trying to exit gracefully...")
                 self.process_failure("Exception:" + traceback.format_exc(ex))
