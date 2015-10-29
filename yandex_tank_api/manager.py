@@ -1,14 +1,16 @@
-import os
 import os.path
-import errno
+import os
+import signal
 import multiprocessing
 import logging
+import logging.handlers
 import traceback
 import json
 
-import common
-import worker
-import webserver
+import yandex_tank_api.common
+import yandex_tank_api.worker
+import yandex_tank_api.webserver
+
 
 class TankRunner(object):
 
@@ -19,8 +21,7 @@ class TankRunner(object):
     def __init__(self,
                  cfg,
                  manager_queue,
-                 session,
-                 test_id,
+                 session_id,
                  tank_config,
                  first_break):
         """
@@ -29,21 +30,11 @@ class TankRunner(object):
         """
         self.log = logging.getLogger(__name__)
 
-        # Create the working directory if necessary and check that the test was
-        # not run yet
-        work_dir = cfg['tests_dir'] + '/' + test_id
-        try:
-            os.makedirs(work_dir)
-        except OSError as err:
-            if err.errno != errno.EEXIST:
-                self.log.exception(
-                    "Failed to create working directory %s", work_dir)
-                raise
-            else:
-                if os.path.exists(work_dir + '/status.json'):
-                    raise RuntimeError("Test already exists")
+        work_dir = os.path.join(cfg['tests_dir'], session_id)
+        load_ini_path = os.path.join(work_dir, 'load.ini')
+
         # Create load.ini
-        tank_config_file = open(work_dir + '/load.ini', 'w')
+        tank_config_file = open(load_ini_path, 'w')
         tank_config_file.write(tank_config)
 
         # Create tank queue and put first break there
@@ -53,9 +44,15 @@ class TankRunner(object):
         ignore_machine_defaults = cfg['ignore_machine_defaults']
 
         # Start tank process
-        self.tank_process = multiprocessing.Process(target=worker.run, args=(
-            self.tank_queue, manager_queue,
-            work_dir, session, test_id, ignore_machine_defaults))
+        self.tank_process = multiprocessing.Process(
+            target=yandex_tank_api.worker.run,
+            args=(
+                self.tank_queue,
+                manager_queue,
+                work_dir,
+                session_id,
+                ignore_machine_defaults
+            ))
         self.tank_process.start()
 
     def set_break(self, next_break):
@@ -75,8 +72,9 @@ class TankRunner(object):
         return self.tank_process.join()
 
     def stop(self):
-        """Terminates the tank process"""
-        self.tank_process.terminate()
+        """Interrupts the tank process"""
+        if self.is_alive():
+            os.kill(self.tank_process.pid,signal.SIGINT)
 
     def __del__(self):
         self.stop()
@@ -89,8 +87,8 @@ class Manager(object):
     """
 
     def __init__(self,
-                 cfg,
-                 TankRunnerClass=TankRunner):
+                 cfg
+                 ):
         """Sets up initial state of Manager"""
         self.log = logging.getLogger(__name__)
 
@@ -100,16 +98,15 @@ class Manager(object):
         self.webserver_queue = multiprocessing.Queue()
 
         self.webserver_process = multiprocessing.Process(
-            target=webserver.main, 
-            args=(self.webserver_queue, 
-                  self.manager_queue, 
+            target=yandex_tank_api.webserver.main,
+            args=(self.webserver_queue,
+                  self.manager_queue,
                   cfg['tests_dir'],
                   cfg['tornado_debug'])
-            )
-        self.webserver_process.daemon=True
+        )
+        self.webserver_process.daemon = True
         self.webserver_process.start()
 
-        self.TankRunner = TankRunnerClass
         self.reset_session()
 
     def reset_session(self):
@@ -118,8 +115,7 @@ class Manager(object):
         Should be called only when tank is not running
         """
         self.log.info("Resetting current session variables")
-        self.session = None
-        self.test = None
+        self.session_id = None
         self.tank_runner = None
         self.last_tank_status = 'not started'
 
@@ -127,43 +123,45 @@ class Manager(object):
         """Process command from webserver"""
 
         if 'session' not in msg:
-            self.log.error("Bad command: session not specified")
+            self.log.error("Bad command: session id not specified")
             return
 
         if msg['cmd'] == 'stop':
             # Stopping tank
-            if msg['session'] == self.session:
+            if msg['session'] == self.session_id:
                 self.tank_runner.stop()
             else:
                 self.log.error("Can stop only current session")
             return
 
         if msg['cmd'] == 'run':
-            if self.session is not None:
+            if self.session_id is not None:
                 # New break for running session
-                if msg['session'] != self.session:
+                if msg['session'] != self.session_id:
                     raise RuntimeError(
-                        "Webserver requested to start session when another one is already running")
+                        "Webserver requested to start session "
+                        "when another one is already running"
+                    )
                 elif 'break' in msg:
                     self.tank_runner.set_break(msg['break'])
                 else:
                     # Internal protocol error
-                    self.log.error("Recieved run command without break")
+                    self.log.error("Recieved run command without break:\n%s",json.dumps(msg))
             else:
                 # Starting new session
-                if 'test' not in msg or 'config' not in msg:
+                if 'session' not in msg or 'config' not in msg:
                     # Internal protocol error
                     self.log.error(
-                        "Not enough data to start new session: both config and test should be present")
+                        "Not enough data to start new session: "
+                        "both config and test should be present:%s\n",
+                        json.dumps(msg)
+                    )
                 else:
-                    self.session = msg['session']
-                    self.test = msg['test']
                     try:
-                        self.tank_runner = self.TankRunner(
+                        self.tank_runner = TankRunner(
                             cfg=self.cfg,
                             manager_queue=self.manager_queue,
-                            session=self.session,
-                            test_id=self.test,
+                            session_id=msg['session'],
                             tank_config=msg['config'],
                             first_break=msg['break']
                         )
@@ -173,10 +171,13 @@ class Manager(object):
                         self.webserver_queue.put({
                             'session': msg['session'],
                             'status': 'failed',
-                            'test': self.test,
                             'break': msg['break'],
-                            'reason': 'Failed to start tank:\n' + traceback.format_exc(ex)
+                            'reason': 'Failed to start tank:\n'
+                            + traceback.format_exc(ex)
                         })
+                    else:
+                        self.session_id = msg['session']
+
 
             return
 
@@ -202,18 +203,23 @@ class Manager(object):
                 if handle_tank_exit:
                     # We detected tank death and made sure the queue is empty.
                     # Do what we should.
-                    if self.last_tank_status == 'running' or self.tank_runner.get_exitcode() != 0:
+                    if self.last_tank_status == 'running'\
+                            or self.tank_runner.get_exitcode() != 0:
                         # Report unexpected death
                         self.webserver_queue.put({
-                            'session': self.session,
-                            'test': self.test,
+                            'session': self.session_id,
                             'status': 'failed',
-                            'reason': 'Tank died unexpectedly. Last reported status: {0}, worker exitcode: {1} '.format(self.last_tank_status, self.tank_runner.get_exitcode())})
+                            'reason': "Tank died unexpectedly. Last reported "
+                            "status: % s, worker exitcode: % s" %
+                            (self.last_tank_status,
+                             self.tank_runner.get_exitcode())
+                        })
                     # In any case, reset the session
                     self.reset_session()
                     handle_tank_exit = False
 
-                elif self.session is not None and not self.tank_runner.is_alive():
+                elif self.session_id is not None\
+                        and not self.tank_runner.is_alive():
                     # Tank has died.
                     # Fetch any remaining messages and wait one more timeout
                     # before reporting unexpected death and resetting session
@@ -262,22 +268,24 @@ def run_server(options):
     # TODO: un-hardcode cfg
     cfg = {
         'tank_check_interval': 1.0,
-        'tests_dir': options.work_dir+'/tests',
+        'tests_dir': options.work_dir + '/tests',
         'ignore_machine_defaults': options.ignore_machine_defaults,
-        'tornado_debug':options.debug
+        'tornado_debug': options.debug
     }
-  
+
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
     if options.log_file is None:
         handler = logging.StreamHandler()
     else:
-        handler = logging.handlers.RotatingFileHandler(options.log_file, maxBytes=1000000, backupCount=16)
+        handler = logging.handlers.RotatingFileHandler(
+            options.log_file, maxBytes=1000000, backupCount=16)
 
-    handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s %(message)s"))
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s [%(levelname)s] %(name)s %(message)s"))
     root_logger.addHandler(handler)
 
-    logger=logging.getLogger(__name__) 
+    logger = logging.getLogger(__name__)
     try:
         logger.info("Starting server")
         Manager(cfg).run()

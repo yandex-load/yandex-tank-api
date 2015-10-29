@@ -41,25 +41,40 @@ Status reported to HTTP Server (into webserver_queue):
                success: tank has exited and no failures occured
                failed: tank has exited and there were failures
 
-    'stage': --- optional, from tank only. This is the last stage that was executed.
+    'stage': --- optional, from tank only.
+                 This is the last stage that was executed.
     'break': --- optional, from tank only. The next break.
     'reason' : --- optional (from manager)
     'failures': --- optional, from tank only
     }
 """
 
-test_stage_order = ['lock', 'init', 'configure', 'prepare',
-                    'start', 'poll', 'end', 'postprocess', 'unlock', 'finished']
+TEST_STAGE_ORDER_AND_DEPS = [
+    ('init', set()),
+    ('lock', 'init'),
+    ('configure', 'lock'),
+    ('prepare', 'configure'),
+    ('start', 'prepare'),
+    ('poll', 'start'),
+    ('end', 'lock'),
+    ('postprocess', 'end'),
+    ('unlock', 'lock'),
+    ('finished', set())
+]
+
+TEST_STAGE_ORDER = [stage for stage, _ in TEST_STAGE_ORDER_AND_DEPS]
+TEST_STAGE_DEPS = {stage:dep for stage, dep in TEST_STAGE_ORDER_AND_DEPS}
 
 
-def is_A_earlier_than_B(stage_A, stage_B):
+
+def is_A_earlier_than_B(stageA, stageB):
     """Slow but reliable"""
-    return test_stage_order.index(stage_A) < test_stage_order.index(stage_B)
+    return TEST_STAGE_ORDER.index(stageA) < TEST_STAGE_ORDER.index(stageB)
 
 
 def get_valid_breaks():
-    return test_stage_order
+    return TEST_STAGE_ORDER
 
 
 def is_valid_break(brk):
-    return brk in test_stage_order
+    return brk in TEST_STAGE_ORDER

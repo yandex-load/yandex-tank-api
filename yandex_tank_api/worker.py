@@ -3,6 +3,7 @@ Tank worker process for yandex-tank-api
 Based on ConsoleWorker from yandex-tank
 """
 
+import signal
 import fnmatch
 import logging
 import os
@@ -20,7 +21,7 @@ try:
 except ImportError:
     # in case of old tank version
     sys.path.append('/usr/lib/yandex-tank')
-    import tankcore #pylint: disable=F0401
+    import tankcore  # pylint: disable=F0401
     NEW_TANK = False
 
 # Yandex.Tank.Api modules
@@ -29,7 +30,17 @@ except ImportError:
 import yandex_tank_api.common as common
 
 
+class InterruptTest(BaseException):
+
+    """Raised by sigterm handler"""
+
+    def __init__(self, remove_break=False):
+        super(InterruptTest, self).__init__()
+        self.remove_break = remove_break
+
+
 class TankCore(tankcore.TankCore):
+
     """
     We do not use tankcore.TankCore itself
     to let plugins know that they are executed under API server.
@@ -40,7 +51,14 @@ class TankCore(tankcore.TankCore):
         core_class = str(self.core.__class__)
         return core_class == 'yandex_tank_api.worker.TankCore'
     """
-    pass
+
+    def __init__(self, tank_worker):
+        super(TankCore, self).__init__()
+        self.tank_worker = tank_worker
+
+    def publish(self, publisher, key, value):
+        super(TankCore, self).publish(publisher, key, value)
+        self.tank_worker.report_status('running', 'false')
 
 
 class TankWorker(object):
@@ -51,7 +69,7 @@ class TankWorker(object):
 
     def __init__(
             self, tank_queue, manager_queue, working_dir,
-            session, test, ignore_machine_defaults):
+            session_id, ignore_machine_defaults):
         if NEW_TANK:
             logging.info("Using yandextank.core as tank core")
         else:
@@ -62,8 +80,7 @@ class TankWorker(object):
         self.tank_queue = tank_queue
         self.manager_queue = manager_queue
         self.working_dir = working_dir
-        self.session = session
-        self.test = test
+        self.session_id = session_id
         self.ignore_machine_defaults = ignore_machine_defaults
 
         # State variables
@@ -71,10 +88,12 @@ class TankWorker(object):
         self.stage = 'not started'
         self.failures = []
         self.retcode = None
+        self.locked = False
+        self.done_stages = set()
 
         reload(logging)
         self.log = logging.getLogger(__name__)
-        self.core = TankCore()
+        self.core = TankCore(self)
 
     def __add_log_file(self, logger, loglevel, filename):
         """Adds FileHandler to logger; adds filename to artifacts"""
@@ -115,7 +134,11 @@ class TankWorker(object):
                     self.log.debug("Adding config file: %s", config_file)
                     configs += [config_file]
         except OSError:
-            self.log.warning("Failed to get configs from %s", config_dir, exc_info=True)
+            self.log.warning(
+                "Failed to get configs from %s",
+                config_dir,
+                exc_info=True
+            )
 
         return configs
 
@@ -140,6 +163,17 @@ class TankWorker(object):
         self.core.load_configs(self.__get_configs())
         self.core.load_plugins()
 
+    def __get_lock(self):
+        """Get lock and remember that we succeded in getting lock"""
+        self.core.get_lock()
+        self.locked = True
+
+    def __end(self):
+        return self.core.plugins_end_test(self.retcode)
+
+    def __postprocess(self):
+        return self.core.plugins_post_process(self.retcode)
+
     def get_next_break(self):
         """
         Read the next break from tank queue
@@ -154,7 +188,7 @@ class TankWorker(object):
                 continue
             brk = msg['break']
             # Check taht the name is valid
-            if brk not in common.test_stage_order:
+            if not common.is_valid_break(brk):
                 self.log.error(
                     "Manager requested break at an unknown stage: %s", brk)
             # Check that the break is later than br
@@ -168,147 +202,104 @@ class TankWorker(object):
                 self.break_at = brk
                 return
 
-    def report_status(
-            self,
-            status='running',
-            dump_status=True,
-            stage_completed=False
-    ):
+    def report_status(self, status, stage_completed):
         """Report status to manager and dump status.json, if required"""
-        msg = {'status': status,
-               'session': self.session,
-               'test': self.test,
-               'current_stage': self.stage,
-               'stage_completed': stage_completed,
-               'break': self.break_at,
-               'failures': self.failures,
-               'retcode': self.retcode
-               }
+        msg = {
+            'status': status,
+            'session': self.session_id,
+            'current_stage': self.stage,
+            'stage_completed': stage_completed,
+            'break': self.break_at,
+            'failures': self.failures,
+            'retcode': self.retcode,
+            'tank_status': self.core.status,
+        }
         self.manager_queue.put(msg)
-        if dump_status:
+        if self.locked:
             json.dump(
                 msg,
                 open(os.path.join(self.working_dir, 'status.json'), 'w'),
                 indent=4
             )
 
-    def process_failure(self, reason, dump_status=True):
+    def process_failure(self, reason):
         """
         Act on failure of current test stage:
         - log it
-        - report to manager
-        - remove break (otherwise we might get stuck at end/postprocess!!!)
+        - add to failures list
         """
         self.log.error("Failure in stage %s:\n%s", self.stage, reason)
         self.failures.append({'stage': self.stage, 'reason': reason})
-        self.report_status(dump_status=dump_status)
-        self.break_at = 'finished'
 
-    def set_stage(
-            self,
-            stage,
-            status='running',
-            dump_status=True,
-            stage_completed=False
-    ):
-        """Unconditionally switch stage and report status to manager"""
-        self.stage = stage
-        self.report_status(
-            status, dump_status=dump_status, stage_completed=stage_completed)
+    def _execute_stage(self, stage):
+        """Really execute stage and set retcode"""
+        new_retcode = {
+            'init': self.__preconfigure,
+            'lock': self.__get_lock,
+            'configure': self.core.plugins_configure,
+            'prepare': self.core.plugins_prepare_test,
+            'start': self.core.plugins_start_test,
+            'poll': self.core.wait_for_finish,
+            'end': self.__end,
+            'postprocess': self.__postprocess,
+            'unlock': self.core.release_lock}[stage]()
+        if new_retcode is not None:
+            self.retcode = new_retcode
 
-    def next_stage(self, stage, dump_status=True):
+    def next_stage(self, stage):
         """
         Report stage completion.
         Switch to the next test stage if allowed.
+        Run it or skip it
         """
 
-        self.report_status(
-            'running', dump_status=dump_status, stage_completed=True)
         while not common.is_A_earlier_than_B(stage, self.break_at):
             # We have reached the set break
             # Waiting until another, later, break is set by manager
             self.get_next_break()
-        self.set_stage(stage, dump_status=dump_status)
+        self.stage = stage
+        self.report_status('running', False)
+        if stage == common.TEST_STAGE_ORDER[0] or common.TEST_STAGE_DEPS[stage] in self.done_stages:
+            try:
+                self._execute_stage(stage)
+            except InterruptTest as exc:
+                self.retcode = self.retcode or 1
+                self.process_failure("Interrupted")
+                if exc.remove_break:
+                    self.break_at = 'finished'
+            except Exception as ex:
+                self.retcode = self.retcode or 1
+                self.log.exception(
+                    "Exception occured, trying to exit gracefully...")
+                self.process_failure("Exception:" + traceback.format_exc(ex))
+            else:
+                self.done_stages.add(stage)
+        else:
+            self.process_failure("skipped")
+
+        self.report_status('running', True)
 
     def perform_test(self):
         """Perform the test sequence via TankCore"""
-
-        try:
-            self.next_stage('lock', dump_status=False)
-            self.core.get_lock(force=False)
-
-        except KeyboardInterrupt:
-            self.process_failure("Interrupted")
-            self.report_status(
-                status='failed', dump_status=False)
-            return
-        except Exception:
-            self.process_failure('Failed to obtain lock', dump_status=False)
-            self.report_status(
-                status='failed', dump_status=False)
-            return
-
-        try:
-            self.next_stage('init')
-            self.__preconfigure()
-
-            self.next_stage('configure')
-            self.core.plugins_configure()
-
-            self.next_stage('prepare')
-            self.core.plugins_prepare_test()
-
-            self.next_stage('start')
-            self.core.plugins_start_test()
-
-            self.next_stage('poll')
-            self.retcode = self.core.wait_for_finish()
-
-        except KeyboardInterrupt:
-            self.process_failure("Interrupted")
-
-        except Exception as ex:
-            self.log.exception("Exception occured, trying to exit gracefully...")
-            self.process_failure("Exception:" + traceback.format_exc(ex))
-
-        finally:
-            try:
-                self.next_stage('end')
-                self.retcode = self.core.plugins_end_test(self.retcode)
-
-                # We do NOT call post_process if end_test failed
-                # Not sure if it is the desired behaviour
-                self.next_stage('postprocess')
-                self.retcode = self.core.plugins_post_process(self.retcode)
-            except KeyboardInterrupt:
-                self.process_failure("Interrupted")
-            except Exception as ex:
-                self.process_failure(
-                    "Exception while finising test:" + traceback.format_exc(ex))
-            finally:
-                try:
-                    self.next_stage('unlock')
-                except KeyboardInterrupt:
-                    self.process_failure("Interrupted")
-                except Exception as ex:
-                    self.process_failure(
-                        "Exception while waiting for permission to unlock:" +
-                        traceback.format_exc(ex))
-
-                self.core.release_lock()
-                self.set_stage('finished', stage_completed=True)
-                self.report_status(
-                    status='failed' if self.failures else 'success',
-                    stage_completed=True)
+        for stage in common.TEST_STAGE_ORDER[:-1]:
+            self.next_stage(stage)
+        self.stage = 'finished'
+        self.report_status('failed' if self.failures else 'success', True)
         self.log.info("Done performing test with code %s", self.retcode)
+
+
+def signal_handler(signum, _):
+    """ required for everything to be released safely on SIGTERM and SIGINT"""
+    if signum == signal.SIGINT:
+        raise InterruptTest(remove_break=False)
+    raise InterruptTest(remove_break=True)
 
 
 def run(
         tank_queue,
         manager_queue,
         work_dir,
-        session,
-        test,
+        session_id,
         ignore_machine_defaults
 ):
     """
@@ -323,6 +314,8 @@ def run(
 
     """
     os.chdir(work_dir)
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
     TankWorker(
         tank_queue, manager_queue, work_dir,
-        session, test, ignore_machine_defaults).perform_test()
+        session_id, ignore_machine_defaults).perform_test()
