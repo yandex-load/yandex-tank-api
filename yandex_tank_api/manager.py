@@ -78,13 +78,14 @@ class TankRunner(object):
         self.log.info("Waiting for tank exit...")
         return self.tank_process.join()
 
-    def stop(self):
+    def stop(self, remove_break):
         """Interrupts the tank process"""
         if self.is_alive():
-            os.kill(self.tank_process.pid, signal.SIGINT)
+            sig = signal.SIGTERM if remove_break else signal.SIGINT
+            os.kill(self.tank_process.pid, sig)
 
     def __del__(self):
-        self.stop()
+        self.stop(remove_break=True)
 
 
 class Manager(object):
@@ -129,7 +130,7 @@ class Manager(object):
     def _handle_cmd_stop(self, msg):
         """Check running session and kill tank"""
         if msg['session'] == self.session_id:
-            self.tank_runner.stop()
+            self.tank_runner.stop(remove_break=False)
         else:
             self.log.error("Can stop only current session")
 
@@ -233,7 +234,7 @@ class Manager(object):
         self.log.error("Webserver died unexpectedly.")
         if self.tank_runner is not None:
             self.log.warning("Stopping tank...")
-            self.tank_runner.stop()
+            self.tank_runner.stop(remove_break=True)
             self.tank_runner.join()
         raise RuntimeError("Unexpected webserver exit")
 
