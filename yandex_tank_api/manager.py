@@ -9,6 +9,7 @@ import logging
 import logging.handlers
 import traceback
 import json
+import time
 
 import yandex_tank_api.common
 import yandex_tank_api.worker
@@ -199,59 +200,61 @@ class Manager(object):
         else:
             self.log.critical("Unknown command: %s", cmd)
 
+    def _handle_tank_exit(self):
+        """
+        Empty manager queue.
+        Report if tank died unexpectedly.
+        Reset session.
+        """
+        logging.info("Tank exit, sleeping 1 s and handling remaining messages")
+        time.sleep(1)
+        while True:
+            try:
+                msg = self.manager_queue.get(block=False)
+            except multiprocessing.queues.Empty:
+                break
+            self._handle_msg(msg)
+        if self.last_tank_status == 'running'\
+                or self.tank_runner.get_exitcode() != 0:
+            # Report unexpected death
+            self.webserver_queue.put({
+                'session': self.session_id,
+                'status': 'failed',
+                'reason': "Tank died unexpectedly. Last reported "
+                "status: % s, worker exitcode: % s" %
+                (self.last_tank_status,
+                 self.tank_runner.get_exitcode())
+            })
+        # In any case, reset the session
+        self._reset_session()
+
+    def _handle_webserver_exit(self):
+        """Stop tank and raise RuntimeError"""
+        self.log.error("Webserver died unexpectedly.")
+        if self.tank_runner is not None:
+            self.log.warning("Stopping tank...")
+            self.tank_runner.stop()
+            self.tank_runner.join()
+        raise RuntimeError("Unexpected webserver exit")
+
     def run(self):
         """
         Manager event loop.
-        Processing messages from self.manager_queue
-        Checking that tank is alive
-
-        When we detect tank death, we need to empty the queue once again
-        to fetch any remaining messages.
+        Process message from self.manager_queue
+        Check that tank is alive.
+        Check that webserver is alive.
         """
 
-        handle_tank_exit = False
-
         while True:
+            if self.session_id is not None and not self.tank_runner.is_alive():
+                self._handle_tank_exit()
+            if not self.webserver_process.is_alive():
+                self._handle_webserver_exit()
             try:
                 msg = self.manager_queue.get(
-                    block=True, timeout=self.cfg['tank_check_interval'])
+                    block=True, timeout=self.cfg['message_check_interval'])
             except multiprocessing.queues.Empty:
-                if handle_tank_exit:
-                    # We detected tank death and made sure the queue is empty.
-                    # Do what we should.
-                    if self.last_tank_status == 'running'\
-                            or self.tank_runner.get_exitcode() != 0:
-                        # Report unexpected death
-                        self.webserver_queue.put({
-                            'session': self.session_id,
-                            'status': 'failed',
-                            'reason': "Tank died unexpectedly. Last reported "
-                            "status: % s, worker exitcode: % s" %
-                            (self.last_tank_status,
-                             self.tank_runner.get_exitcode())
-                        })
-                    # In any case, reset the session
-                    self._reset_session()
-                    handle_tank_exit = False
-
-                elif self.session_id is not None\
-                        and not self.tank_runner.is_alive():
-                    # Tank has died.
-                    # Fetch any remaining messages and wait one more timeout
-                    # before reporting unexpected death and resetting session
-                    handle_tank_exit = True
-                elif not self.webserver_process.is_alive():
-                    self.log.error("Webserver died unexpectedly.")
-                    if self.tank_runner is not None:
-                        self.log.warning("Stopping tank...")
-                        self.tank_runner.stop()
-                        self.tank_runner.join()
-                    return
-                else:
-                    # No messages. Either no session or tank is just quietly
-                    # doing something.
-                    continue
-            # Process next message
+                continue
             self._handle_msg(msg)
 
     def _handle_msg(self, msg):
@@ -290,7 +293,7 @@ def run_server(options):
     # Configure
     # TODO: un-hardcode cfg
     cfg = {
-        'tank_check_interval': 1.0,
+        'message_check_interval': 1.0,
         'tests_dir': options.work_dir + '/tests',
         'ignore_machine_defaults': options.ignore_machine_defaults,
         'tornado_debug': options.debug
