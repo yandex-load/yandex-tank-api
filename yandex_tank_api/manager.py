@@ -1,3 +1,6 @@
+"""
+Module that manages webserver and tank
+"""
 import os.path
 import os
 import signal
@@ -18,12 +21,14 @@ class TankRunner(object):
     Manages the tank process and its working directory.
     """
 
-    def __init__(self,
-                 cfg,
-                 manager_queue,
-                 session_id,
-                 tank_config,
-                 first_break):
+    def __init__(
+            self,
+            cfg,
+            manager_queue,
+            session_id,
+            tank_config,
+            first_break
+        ):
         """
         Sets up working directory and tank queue
         Starts tank process
@@ -69,12 +74,13 @@ class TankRunner(object):
 
     def join(self):
         """Joins the tank process"""
+        self.log.info("Waiting for tank exit...")
         return self.tank_process.join()
 
     def stop(self):
         """Interrupts the tank process"""
         if self.is_alive():
-            os.kill(self.tank_process.pid,signal.SIGINT)
+            os.kill(self.tank_process.pid, signal.SIGINT)
 
     def __del__(self):
         self.stop()
@@ -107,9 +113,9 @@ class Manager(object):
         self.webserver_process.daemon = True
         self.webserver_process.start()
 
-        self.reset_session()
+        self._reset_session()
 
-    def reset_session(self):
+    def _reset_session(self):
         """
         Resets session state variables
         Should be called only when tank is not running
@@ -146,7 +152,10 @@ class Manager(object):
                     self.tank_runner.set_break(msg['break'])
                 else:
                     # Internal protocol error
-                    self.log.error("Recieved run command without break:\n%s",json.dumps(msg))
+                    self.log.error(
+                        "Recieved run command without break:\n%s",
+                        json.dumps(msg)
+                        )
             else:
                 # Starting new session
                 if 'session' not in msg or 'config' not in msg:
@@ -215,7 +224,7 @@ class Manager(object):
                              self.tank_runner.get_exitcode())
                         })
                     # In any case, reset the session
-                    self.reset_session()
+                    self._reset_session()
                     handle_tank_exit = False
 
                 elif self.session_id is not None\
@@ -235,7 +244,6 @@ class Manager(object):
                     # No messages. Either no session or tank is just quietly
                     # doing something.
                     continue
-        
             # Process next message
             self._handle_msg(msg)
 
@@ -262,9 +270,8 @@ class Manager(object):
 
         if self.last_tank_status not in ['success', 'failed'] \
                 and new_status in ['success', 'failed']:
-            self.log.info("Waiting for tank exit...")
             self.tank_runner.join()
-            self.reset_session()
+            self._reset_session()
 
         self.last_tank_status = msg['status']
 
