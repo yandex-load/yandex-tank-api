@@ -125,6 +125,61 @@ class Manager(object):
         self.tank_runner = None
         self.last_tank_status = 'not started'
 
+    def _handle_cmd_stop(self, msg):
+        """Check running session and kill tank"""
+        if msg['session'] == self.session_id:
+            self.tank_runner.stop()
+        else:
+            self.log.error("Can stop only current session")
+
+    def _handle_cmd_set_break(self, msg):
+        """New break for running session"""
+        if msg['session'] != self.session_id:
+            raise RuntimeError(
+                "Webserver requested to start session "
+                "when another one is already running"
+            )
+        elif 'break' in msg:
+            self.tank_runner.set_break(msg['break'])
+        else:
+            # Internal protocol error
+            self.log.error(
+                "Recieved run command without break:\n%s",
+                json.dumps(msg)
+                )
+
+    def _handle_cmd_new_session(self, msg):
+        """Start new session"""
+        if 'session' not in msg or 'config' not in msg:
+            # Internal protocol error
+            self.log.critical(
+                "Not enough data to start new session: "
+                "both config and test should be present:%s\n",
+                json.dumps(msg)
+            )
+            return
+        try:
+            self.tank_runner = TankRunner(
+                cfg=self.cfg,
+                manager_queue=self.manager_queue,
+                session_id=msg['session'],
+                tank_config=msg['config'],
+                first_break=msg['break']
+            )
+        except KeyboardInterrupt:
+            pass
+        except Exception as ex:
+            self.webserver_queue.put({
+                'session': msg['session'],
+                'status': 'failed',
+                'break': msg['break'],
+                'reason': 'Failed to start tank:\n'
+                + traceback.format_exc(ex)
+            })
+        else:
+            self.session_id = msg['session']
+
+
     def _handle_cmd(self, msg):
         """Process command from webserver"""
 
@@ -132,65 +187,17 @@ class Manager(object):
             self.log.error("Bad command: session id not specified")
             return
 
-        if msg['cmd'] == 'stop':
-            # Stopping tank
-            if msg['session'] == self.session_id:
-                self.tank_runner.stop()
-            else:
-                self.log.error("Can stop only current session")
-            return
+        cmd = msg['cmd']
 
-        if msg['cmd'] == 'run':
+        if cmd == 'stop':
+            self._handle_cmd_stop(msg)
+        elif cmd == 'run':
             if self.session_id is not None:
-                # New break for running session
-                if msg['session'] != self.session_id:
-                    raise RuntimeError(
-                        "Webserver requested to start session "
-                        "when another one is already running"
-                    )
-                elif 'break' in msg:
-                    self.tank_runner.set_break(msg['break'])
-                else:
-                    # Internal protocol error
-                    self.log.error(
-                        "Recieved run command without break:\n%s",
-                        json.dumps(msg)
-                        )
+                self._handle_cmd_set_break(msg)
             else:
-                # Starting new session
-                if 'session' not in msg or 'config' not in msg:
-                    # Internal protocol error
-                    self.log.error(
-                        "Not enough data to start new session: "
-                        "both config and test should be present:%s\n",
-                        json.dumps(msg)
-                    )
-                else:
-                    try:
-                        self.tank_runner = TankRunner(
-                            cfg=self.cfg,
-                            manager_queue=self.manager_queue,
-                            session_id=msg['session'],
-                            tank_config=msg['config'],
-                            first_break=msg['break']
-                        )
-                    except KeyboardInterrupt:
-                        pass
-                    except Exception as ex:
-                        self.webserver_queue.put({
-                            'session': msg['session'],
-                            'status': 'failed',
-                            'break': msg['break'],
-                            'reason': 'Failed to start tank:\n'
-                            + traceback.format_exc(ex)
-                        })
-                    else:
-                        self.session_id = msg['session']
-
-
-            return
-
-        raise self.log.error("Unknown command")
+                self._handle_cmd_new_session(msg)
+        else:
+            self.log.critical("Unknown command: %s", cmd)
 
     def run(self):
         """
