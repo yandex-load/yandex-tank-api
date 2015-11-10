@@ -119,7 +119,7 @@ class Manager(object):
         self.tank_runner = None
         self.last_tank_status = 'not started'
 
-    def manage_tank(self, msg):
+    def _handle_cmd(self, msg):
         """Process command from webserver"""
 
         if 'session' not in msg:
@@ -235,31 +235,40 @@ class Manager(object):
                     # No messages. Either no session or tank is just quietly
                     # doing something.
                     continue
-
+        
             # Process next message
-            self.log.info("Recieved message:\n%s", json.dumps(msg))
+            self._handle_msg(msg)
 
-            if 'cmd' in msg:
-                # Recieved command from server
-                self.manage_tank(msg)
-            elif 'status' in msg:
-                # This is a status message from tank
+    def _handle_msg(self, msg):
+        """Handle message from manager queue"""
+        self.log.info("Recieved message:\n%s", json.dumps(msg))
+        if 'cmd' in msg:
+            # Recieved command from server
+            self._handle_cmd(msg)
+        elif 'status' in msg:
+            # This is a status message from tank
+            self._handle_tank_status(msg)
+        else:
+            self.log.error(
+                "Strange message (not a command and not a status) ")
 
-                new_status = msg['status']
-                # Check for transition from running to stopped
-                if self.last_tank_status not in ['success', 'failed'] \
-                        and new_status in ['success', 'failed']:
-                    self.log.info("Waiting for tank exit...")
-                    self.tank_runner.join()
-                    self.reset_session()
 
-                self.last_tank_status = msg['status']
-                # Notify webserver
-                self.webserver_queue.put(msg)
-            else:
-                self.log.error(
-                    "Strange message (not a command and not a status) ")
+    def _handle_tank_status(self, msg):
+        """
+        Wait for tank exit if it stopped.
+        Remember new status and notify webserver.
+        """
+        new_status = msg['status']
 
+        if self.last_tank_status not in ['success', 'failed'] \
+                and new_status in ['success', 'failed']:
+            self.log.info("Waiting for tank exit...")
+            self.tank_runner.join()
+            self.reset_session()
+
+        self.last_tank_status = msg['status']
+
+        self.webserver_queue.put(msg)
 
 def run_server(options):
     """Runs the whole yandex-tank-api server """
