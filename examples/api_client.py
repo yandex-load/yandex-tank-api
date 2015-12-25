@@ -83,7 +83,7 @@ class TankAPIClient(object):
             api_port=self.api_port,
         )
         if session_id:
-            req += "?%s" % session_id
+            req += "?session=%s" % session_id
         resp = requests.get(req)
         if resp.status_code == 200:
             data = json.loads(resp.text)
