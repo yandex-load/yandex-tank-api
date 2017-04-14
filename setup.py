@@ -36,7 +36,6 @@ setup(
     tests_require=['pytest', ],
     install_requires=[
         "tornado>=2.1",
-        "python-daemon>=1.5.5",
         "pyyaml",
         "pyjade",
         "yandextank>=1.8.35",

@@ -20,6 +20,9 @@ import yandextank.core as tankcore
 import yandex_tank_api.common as common
 
 
+logger = logging.getLogger(__name__)
+
+
 class InterruptTest(BaseException):
     """Raised by sigterm handler"""
 
@@ -52,8 +55,6 @@ class TankCore(tankcore.TankCore):
 class TankWorker(object):
     """    Worker class that runs tank core until the next breakpoint   """
 
-    IGNORE_LOCKS = "ignore_locks"
-
     def __init__(
             self, tank_queue, manager_queue, working_dir, session_id,
             ignore_machine_defaults):
@@ -72,18 +73,12 @@ class TankWorker(object):
         self.retcode = None
         self.locked = False
         self.done_stages = set()
-
-        reload(logging)
-        self.log = logging.getLogger(__name__)
         self.core = TankCore(self)
 
     def __add_log_file(self, logger, loglevel, filename):
         """Adds FileHandler to logger; adds filename to artifacts"""
-        full_filename = os.path.join(self.working_dir, filename)
-
-        self.core.add_artifact_file(full_filename)
-
-        handler = logging.FileHandler(full_filename)
+        self.core.add_artifact_file(filename)
+        handler = logging.FileHandler(filename)
         handler.setLevel(loglevel)
         handler.setFormatter(
             logging.Formatter(
@@ -113,10 +108,10 @@ class TankWorker(object):
                 if fnmatch.fnmatch(filename, '*.ini'):
                     config_file = os.path.realpath(
                         config_dir + os.sep + filename)
-                    self.log.debug("Adding config file: %s", config_file)
+                    logger.debug("Adding config file: %s", config_file)
                     configs += [config_file]
         except OSError:
-            self.log.warning(
+            logger.warning(
                 "Failed to get configs from %s", config_dir, exc_info=True)
 
         return configs
@@ -167,21 +162,21 @@ class TankWorker(object):
             msg = self.tank_queue.get()
             # Check that there is a break in the message
             if 'break' not in msg:
-                self.log.error(
+                logger.error(
                     "No break specified in the recieved message from manager")
                 continue
             brk = msg['break']
             # Check taht the name is valid
             if not common.is_valid_break(brk):
-                self.log.error(
+                logger.error(
                     "Manager requested break at an unknown stage: %s", brk)
             # Check that the break is later than br
             elif common.is_A_earlier_than_B(brk, self.break_at):
-                self.log.error(
+                logger.error(
                     "Recieved break %s which is earlier than "
                     "current next break %s", brk, self.break_at)
             else:
-                self.log.info(
+                logger.info(
                     "Changing the next break from %s to %s", self.break_at, brk)
                 self.break_at = brk
                 return
@@ -211,7 +206,7 @@ class TankWorker(object):
         - log it
         - add to failures list
         """
-        self.log.error("Failure in stage %s:\n%s", self.stage, reason)
+        logger.error("Failure in stage %s:\n%s", self.stage, reason)
         self.failures.append({'stage': self.stage, 'reason': reason})
 
     def _execute_stage(self, stage):
@@ -254,7 +249,7 @@ class TankWorker(object):
                     self.break_at = 'finished'
             except Exception as ex:
                 self.retcode = self.retcode or 1
-                self.log.exception(
+                logger.exception(
                     "Exception occured, trying to exit gracefully...")
                 self.process_failure("Exception:" + traceback.format_exc(ex))
             else:
@@ -270,7 +265,7 @@ class TankWorker(object):
             self.next_stage(stage)
         self.stage = 'finished'
         self.report_status('failed' if self.failures else 'success', True)
-        self.log.info("Done performing test with code %s", self.retcode)
+        logger.info("Done performing test with code %s", self.retcode)
 
 
 def signal_handler(signum, _):
