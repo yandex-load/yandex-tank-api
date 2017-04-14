@@ -56,7 +56,7 @@ class TankWorker(object):
     """    Worker class that runs tank core until the next breakpoint   """
 
     def __init__(
-            self, tank_queue, manager_queue, working_dir, session_id,
+            self, tank_queue, manager_queue, working_dir, lock_dir, session_id,
             ignore_machine_defaults):
 
         # Parameters from manager
@@ -74,6 +74,7 @@ class TankWorker(object):
         self.locked = False
         self.done_stages = set()
         self.core = TankCore(self)
+        self.core.lock_dir = lock_dir
 
     def __add_log_file(self, logger, loglevel, filename):
         """Adds FileHandler to logger; adds filename to artifacts"""
@@ -197,7 +198,7 @@ class TankWorker(object):
         if self.locked:
             json.dump(
                 msg,
-                open(os.path.join(self.working_dir, 'status.json'), 'w'),
+                open('status.json', 'w'),
                 indent=4)
 
     def process_failure(self, reason):
@@ -276,7 +277,7 @@ def signal_handler(signum, _):
 
 
 def run(
-        tank_queue, manager_queue, work_dir, session_id,
+        tank_queue, manager_queue, work_dir, lock_dir, session_id,
         ignore_machine_defaults):
     """
     Target for tank process.
@@ -293,5 +294,5 @@ def run(
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     TankWorker(
-        tank_queue, manager_queue, work_dir, session_id,
+        tank_queue, manager_queue, work_dir, lock_dir, session_id,
         ignore_machine_defaults).perform_test()

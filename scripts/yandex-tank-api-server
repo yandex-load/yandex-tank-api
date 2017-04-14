@@ -24,7 +24,13 @@ def parse_options():
         help='Log file',
         default=None,
         dest='log_file')
-
+    parser.add_argument(
+        '-k',
+        '--lock-dir',
+        action='store',
+        dest='lock_dir',
+        default="/var/lock",
+        help="Directory for lock file")
     parser.add_argument(
         "--ignore-machine-defaults",
         action='store_true',

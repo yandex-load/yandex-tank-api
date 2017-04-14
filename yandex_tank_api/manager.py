@@ -30,6 +30,7 @@ class TankRunner(object):
         self.log = logging.getLogger(__name__)
 
         work_dir = os.path.join(cfg['tests_dir'], session_id)
+        lock_dir = cfg['lock_dir']
         load_ini_path = os.path.join(work_dir, 'load.ini')
 
         # Create load.ini
@@ -46,7 +47,7 @@ class TankRunner(object):
         self.tank_process = multiprocessing.Process(
             target=yandex_tank_api.worker.run,
             args=(
-                self.tank_queue, manager_queue, work_dir, session_id,
+                self.tank_queue, manager_queue, work_dir, lock_dir, session_id,
                 ignore_machine_defaults))
         self.tank_process.start()
 
@@ -273,7 +274,8 @@ def run_server(options):
         'message_check_interval': 1.0,
         'tests_dir': options.work_dir + '/tests',
         'ignore_machine_defaults': options.ignore_machine_defaults,
-        'tornado_debug': options.debug
+        'tornado_debug': options.debug,
+        'lock_dir': options.lock_dir,
     }
 
     root_logger = logging.getLogger()
