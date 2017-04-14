@@ -8,21 +8,11 @@ import fnmatch
 import logging
 import os
 import os.path
-import sys
 import traceback
 import json
 import itertools as itt
 from pkg_resources import resource_filename
-
-NEW_TANK = True
-
-try:
-    import yandextank.core as tankcore
-except ImportError:
-    # in case of old tank version
-    sys.path.append('/usr/lib/yandex-tank')
-    import tankcore  # pylint: disable=F0401
-    NEW_TANK = False
+import yandextank.core as tankcore
 
 # Yandex.Tank.Api modules
 
@@ -31,7 +21,6 @@ import yandex_tank_api.common as common
 
 
 class InterruptTest(BaseException):
-
     """Raised by sigterm handler"""
 
     def __init__(self, remove_break=False):
@@ -40,7 +29,6 @@ class InterruptTest(BaseException):
 
 
 class TankCore(tankcore.TankCore):
-
     """
     We do not use tankcore.TankCore itself
     to let plugins know that they are executed under API server.
@@ -62,19 +50,13 @@ class TankCore(tankcore.TankCore):
 
 
 class TankWorker(object):
-
     """    Worker class that runs tank core until the next breakpoint   """
 
     IGNORE_LOCKS = "ignore_locks"
 
     def __init__(
-            self, tank_queue, manager_queue, working_dir,
-            session_id, ignore_machine_defaults):
-        if NEW_TANK:
-            logging.info("Using yandextank.core as tank core")
-        else:
-            logging.warning(
-                "Using obsolete /usr/lib/yandex-tank/tankcore.py as tank core")
+            self, tank_queue, manager_queue, working_dir, session_id,
+            ignore_machine_defaults):
 
         # Parameters from manager
         self.tank_queue = tank_queue
@@ -103,9 +85,9 @@ class TankWorker(object):
 
         handler = logging.FileHandler(full_filename)
         handler.setLevel(loglevel)
-        handler.setFormatter(logging.Formatter(
-            "%(asctime)s [%(levelname)s] %(name)s %(message)s"
-        ))
+        handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s [%(levelname)s] %(name)s %(message)s"))
         logger.addHandler(handler)
 
     def __setup_logging(self):
@@ -135,26 +117,28 @@ class TankWorker(object):
                     configs += [config_file]
         except OSError:
             self.log.warning(
-                "Failed to get configs from %s",
-                config_dir,
-                exc_info=True
-            )
+                "Failed to get configs from %s", config_dir, exc_info=True)
 
         return configs
 
     def __get_configs(self):
         """Returns list of all configs for this test"""
-        configs = list(itt.chain(
-            [resource_filename('yandextank.core', 'config/00-base.ini')]
-            if NEW_TANK else [],
-            self.__get_configs_from_dir('/etc/yandex-tank/')
-            if not self.ignore_machine_defaults else [],
-            [resource_filename(__name__, 'config/00-tank-api-defaults.ini')],
-            self.__get_configs_from_dir('/etc/yandex-tank-api/defaults'),
-            self.__get_configs_from_dir(self.working_dir),
-            self.__get_configs_from_dir('/etc/yandex-tank-api/override'),
-            [resource_filename(__name__, 'config/99-tank-api-override.ini')],
-        ))
+        configs = list(
+            itt.chain(
+                [resource_filename('yandextank.core', 'config/00-base.ini')],
+                self.__get_configs_from_dir('/etc/yandex-tank/')
+                if not self.ignore_machine_defaults else [],
+                [
+                    resource_filename(
+                        __name__, 'config/00-tank-api-defaults.ini')
+                ],
+                self.__get_configs_from_dir('/etc/yandex-tank-api/defaults'),
+                self.__get_configs_from_dir(self.working_dir),
+                self.__get_configs_from_dir('/etc/yandex-tank-api/override'),
+                [
+                    resource_filename(
+                        __name__, 'config/99-tank-api-override.ini')
+                ], ))
         return configs
 
     def __preconfigure(self):
@@ -219,8 +203,7 @@ class TankWorker(object):
             json.dump(
                 msg,
                 open(os.path.join(self.working_dir, 'status.json'), 'w'),
-                indent=4
-            )
+                indent=4)
 
     def process_failure(self, reason):
         """
@@ -242,7 +225,8 @@ class TankWorker(object):
             'poll': self.core.wait_for_finish,
             'end': self.__end,
             'postprocess': self.__postprocess,
-            'unlock': self.core.release_lock}[stage]()
+            'unlock': self.core.release_lock
+        }[stage]()
         if new_retcode is not None:
             self.retcode = new_retcode
 
@@ -259,7 +243,8 @@ class TankWorker(object):
             self.get_next_break()
         self.stage = stage
         self.report_status('running', False)
-        if stage == common.TEST_STAGE_ORDER[0] or common.TEST_STAGE_DEPS[stage] in self.done_stages:
+        if stage == common.TEST_STAGE_ORDER[0] or common.TEST_STAGE_DEPS[
+                stage] in self.done_stages:
             try:
                 self._execute_stage(stage)
             except InterruptTest as exc:
@@ -296,12 +281,8 @@ def signal_handler(signum, _):
 
 
 def run(
-        tank_queue,
-        manager_queue,
-        work_dir,
-        session_id,
-        ignore_machine_defaults
-):
+        tank_queue, manager_queue, work_dir, session_id,
+        ignore_machine_defaults):
     """
     Target for tank process.
     This is the only function from this module ever used by Manager.
@@ -317,5 +298,5 @@ def run(
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     TankWorker(
-        tank_queue, manager_queue, work_dir,
-        session_id, ignore_machine_defaults).perform_test()
+        tank_queue, manager_queue, work_dir, session_id,
+        ignore_machine_defaults).perform_test()

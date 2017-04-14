@@ -9,70 +9,70 @@ import daemon
 
 import yandex_tank_api.manager
 
+
 def parse_options():
     '''parse command line options'''
     parser = argparse.ArgumentParser()
-    parser.add_argument("--debug",
-                        action='store_true',
-                        help='Debug mode of torando',
-                        dest='debug',
-                        default=False
-                        )
-    parser.add_argument("--nodetach-process",
-                        action='store_true',
-                        help='Do not detach the process context when daemonizing',
-                        dest='nodetach_process',
-                        default=False
-                        )
- 
-    parser.add_argument("--daemon-uid",
-                        help='Daemonize and run under specified user',
-                        dest='daemon_uid',
-                        default=None
-                        )
-    parser.add_argument("--work-dir",
-                        help='Working directory (for tests, etc).',
-                        default='/var/lib/yandex-tank-api',
-                        dest='work_dir'
-                        )
-    parser.add_argument("--log",
-                        help='Log file',
-                        default=None,
-                        dest='log_file'
-                        )
- 
-    parser.add_argument("--ignore-machine-defaults",
-                        action='store_true',
-                        help='Ignore tank defaults from /etc/yandex-tank/',
-                        default=False,
-                        dest='ignore_machine_defaults'
-                        )
+    parser.add_argument(
+        "--debug",
+        action='store_true',
+        help='Debug mode of torando',
+        dest='debug',
+        default=False)
+    parser.add_argument(
+        "--nodetach-process",
+        action='store_true',
+        help='Do not detach the process context when daemonizing',
+        dest='nodetach_process',
+        default=False)
+
+    parser.add_argument(
+        "--daemon-uid",
+        help='Daemonize and run under specified user',
+        dest='daemon_uid',
+        default=None)
+    parser.add_argument(
+        "--work-dir",
+        help='Working directory (for tests, etc).',
+        default='/var/lib/yandex-tank-api',
+        dest='work_dir')
+    parser.add_argument("--log", help='Log file', default=None, dest='log_file')
+
+    parser.add_argument(
+        "--ignore-machine-defaults",
+        action='store_true',
+        help='Ignore tank defaults from /etc/yandex-tank/',
+        default=False,
+        dest='ignore_machine_defaults')
     return parser.parse_args()
+
 
 def signal_handler(sig, frame):
     """ required for everything to be released safely on SIGTERM and SIGINT"""
     raise KeyboardInterrupt()
 
 
-
-if __name__=='__main__':
-    logging.basicConfig(level=logging.DEBUG,format="%(asctime)s %(levelname)s: %(message)s")
-    options=parse_options()
+if __name__ == '__main__':
+    logging.basicConfig(
+        level=logging.DEBUG, format="%(asctime)s %(levelname)s: %(message)s")
+    options = parse_options()
 
     try:
         if options.daemon_uid is not None:
             try:
-                uid=int(options.daemon_uid)
+                uid = int(options.daemon_uid)
             except ValueError:
                 uid = pwd.getpwnam(options.daemon_uid)[2]
 
-            signal_map={signal.SIGINT : signal_handler,
-                        signal.SIGTERM: signal_handler}
+            signal_map = {
+                signal.SIGINT: signal_handler,
+                signal.SIGTERM: signal_handler
+            }
 
-            with daemon.DaemonContext(uid=uid,
-                                      detach_process=not options.nodetach_process,
-                                      signal_map=signal_map
-                                      ):
+            with daemon.DaemonContext(
+                    uid=uid,
+                    detach_process=not options.nodetach_process,
+                    signal_map=signal_map):
                 yandex_tank_api.manager.run_server(options)
         else:
             yandex_tank_api.manager.run_server(options)

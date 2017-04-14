@@ -2,18 +2,21 @@
 import sys
 import argparse
 
-BUFFER_BYTES_IN  = 300000
+BUFFER_BYTES_IN = 300000
 BUFFER_BYTES_OUT = 1000000
+
 
 def phout_reader(filename):
     f = open(filename, 'r', BUFFER_BYTES_IN)
     while True:
         line = f.readline()
-        yield(line, calculate_ts(line))
+        yield (line, calculate_ts(line))
+
 
 def calculate_ts(line):
     a = line.split("\t", 3)
-    return float(a[0]) - float(a[2])/1000
+    return float(a[0]) - float(a[2]) / 1000
+
 
 def merge_phouts(filenames=[], outfilename='result_phout.txt'):
     outfile = open(outfilename, 'w', BUFFER_BYTES_OUT)
@@ -38,8 +41,10 @@ def merge_phouts(filenames=[], outfilename='result_phout.txt'):
         except:
             left_files.remove(i)
 
+
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='-i=FILE1.txt,FILE2.txt,FILE3.txt -o RESULT.txt')
+    parser = argparse.ArgumentParser(
+        description='-i=FILE1.txt,FILE2.txt,FILE3.txt -o RESULT.txt')
     parser.add_argument('-i', action='store', dest='in_files', type=str)
     parser.add_argument('-o', action='store', dest='outfilename', type=str)
 

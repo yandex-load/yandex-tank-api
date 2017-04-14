@@ -1,3 +1,0 @@
-#!/bin/bash
-id -u lunapark &>/dev/null || adduser --system lunapark
-#DEBHELPER#

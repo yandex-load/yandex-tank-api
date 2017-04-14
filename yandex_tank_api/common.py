@@ -49,22 +49,14 @@ Status reported to HTTP Server (into webserver_queue):
     }
 """
 
-TEST_STAGE_ORDER_AND_DEPS = [
-    ('init', set()),
-    ('lock', 'init'),
-    ('configure', 'lock'),
-    ('prepare', 'configure'),
-    ('start', 'prepare'),
-    ('poll', 'start'),
-    ('end', 'lock'),
-    ('postprocess', 'end'),
-    ('unlock', 'lock'),
-    ('finished', set())
-]
+TEST_STAGE_ORDER_AND_DEPS = [('init', set()), ('lock', 'init'),
+                             ('configure', 'lock'), ('prepare', 'configure'),
+                             ('start', 'prepare'), ('poll', 'start'),
+                             ('end', 'lock'), ('postprocess', 'end'),
+                             ('unlock', 'lock'), ('finished', set())]
 
 TEST_STAGE_ORDER = [stage for stage, _ in TEST_STAGE_ORDER_AND_DEPS]
-TEST_STAGE_DEPS = {stage:dep for stage, dep in TEST_STAGE_ORDER_AND_DEPS}
-
+TEST_STAGE_DEPS = {stage: dep for stage, dep in TEST_STAGE_ORDER_AND_DEPS}
 
 
 def is_A_earlier_than_B(stageA, stageB):
