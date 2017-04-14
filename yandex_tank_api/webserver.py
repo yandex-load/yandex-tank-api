@@ -5,13 +5,6 @@ Yandex.Tank HTTP API: request handling code
 
 import tornado.ioloop
 import tornado.web
-try:
-    from pyjade.ext.tornado import patch_tornado
-    patch_tornado()
-    USE_JADE = True
-except:  # pylint: disable=W0702
-    USE_JADE = False
-
 import os.path
 import os
 import json
@@ -20,8 +13,9 @@ import multiprocessing
 import datetime
 import time
 import errno
-
 import yandex_tank_api.common as common
+from pyjade.ext.tornado import patch_tornado
+patch_tornado()
 
 TRANSFER_SIZE_LIMIT = 128 * 1024
 DEFAULT_HEARTBEAT_TIMEOUT = 600
@@ -314,8 +308,8 @@ class StaticHandler(tornado.web.RequestHandler):  # pylint: disable=R0904
     Handle /manager.html
     """
 
-    def initialize(self, templ):  # pylint: disable=W0221
-        self.template = templ  # pylint: disable=W0201
+    def initialize(self, template):  # pylint: disable=W0221
+        self.template = template  # pylint: disable=W0201
 
     def get(self):
         self.render(self.template)
@@ -335,17 +329,14 @@ class ApiServer(object):
 
         handler_params = dict(server=self)
 
-        handlers = [(r"/run", RunHandler, handler_params),
-                    (r"/stop", StopHandler, handler_params),
-                    (r"/status", StatusHandler, handler_params),
-                    (r"/artifact", ArtifactHandler, handler_params),
-                    (r"/upload", UploadHandler, handler_params)]
-
-        if USE_JADE:
-            handlers.append((
-                r"/manager\.html$", StaticHandler, {
-                    "template": "manager.jade"
-                }))
+        handlers = [
+            (r"/run", RunHandler, handler_params),
+            (r"/stop", StopHandler, handler_params),
+            (r"/status", StatusHandler, handler_params),
+            (r"/artifact", ArtifactHandler, handler_params),
+            (r"/upload", UploadHandler, handler_params),
+            (r"/manager\.html$", StaticHandler, dict(template="manager.jade"))
+        ]
 
         self.app = tornado.web.Application(
             handlers,

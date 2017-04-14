@@ -192,6 +192,7 @@ class Manager(object):
                 break
             self._handle_msg(msg)
         if self.last_tank_status == 'running'\
+                or not self.tank_runner\
                 or self.tank_runner.get_exitcode() != 0:
             # Report unexpected death
             self.webserver_queue.put({
@@ -199,7 +200,8 @@ class Manager(object):
                 'status': 'failed',
                 'reason': "Tank died unexpectedly. Last reported "
                 "status: % s, worker exitcode: % s" % (
-                    self.last_tank_status, self.tank_runner.get_exitcode())
+                    self.last_tank_status,
+                    self.tank_runner.get_exitcode() if self.tank_runner else None)
             })
         # In any case, reset the session
         self._reset_session()
