@@ -25,7 +25,7 @@ setup(
     author='Alexey Lavrenuke',
     author_email='direvius@gmail.com',
     description='Yandex.Tank HTTP API',
-    long_description=open('README.txt').read(),
+    long_description=open('README.md').read(),
     classifiers=[
         'Development Status :: 2 - Pre-Alpha', 'Intended Audience :: Developers'
     ],
