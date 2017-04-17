@@ -96,6 +96,7 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
   Creates a new session with an unique *session ID* and launches a new Tank worker.
 
   Parameters:
+
     * test: Prefix of the session ID. Should be a valid directory name. *Default: current datetime in the %Y%m%d%H%M%S format*
     * break: the test stage before which the tank will stop and wait until the next break is set. *Default: "finished"*
 
@@ -108,6 +109,7 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
   ```
 
   Error codes and corresponding reasons in the reply:
+
     * 400, 'Specified break is not a valid test stage name.'
     * 409, 'The test with this ID is already running.'
     * 409, 'The test with this ID has already finished.'
@@ -118,10 +120,12 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
   Sets a new break point for the running session.
 
   Parameters:
+
     * session: session ID
     * break: the test stage before which the tank will stop and wait until the next break is set. *Default: "finished"*
 
   Return codes and corresponding reasons:
+
     * 200, 'Will try to set break before [new break point]'
     * 400, 'Specified break is not a valid test stage name.'
     * 404, 'No session with this ID.'
@@ -133,9 +137,11 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
   Terminates the current test.
 
   Parameters:
+
     * session: ID of the session to terminate
 
   Return codes and corresponding reasons:
+
     * 200, 'Will try to stop tank process.'
     * 404, 'No session with this ID.'
     * 409, 'This session is already stopped.'
@@ -187,9 +193,11 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
   Returns a JSON array of artifact filenames.
 
   Parameters:
+
     * test: ID of the test
 
   Error codes and the corresponding reasons:
+
     * 404, 'No test with this ID found.'
     * 404, 'Test was not performed, no artifacts.'
 
@@ -198,10 +206,12 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
   Sends the specified artifact file to the client.
 
   Parameters:
+
     * session: ID of the session
     * filename: the artifact file name
 
   Error codes and the corresponding reasons:
+
     * 404, 'No session with this ID found'
     * 404, 'Test was not performed, no artifacts.'
     * 404, 'No such file'
@@ -213,10 +223,12 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
   The session should be running.
 
   Parameters:
+
     * session: ID of the session
     * filename: the name to store the file under
 
   Error codes and the corresponding reasons:
+
     * 404, 'Specified session is not running'
 
 ### Writing plugins
