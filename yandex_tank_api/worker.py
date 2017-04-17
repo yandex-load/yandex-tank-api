@@ -129,7 +129,7 @@ class TankWorker(object):
                         __name__, 'config/00-tank-api-defaults.ini')
                 ],
                 self.__get_configs_from_dir('/etc/yandex-tank-api/defaults'),
-                self.__get_configs_from_dir(self.working_dir),
+                self.__get_configs_from_dir("."),
                 self.__get_configs_from_dir('/etc/yandex-tank-api/override'),
                 [
                     resource_filename(
