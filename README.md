@@ -207,15 +207,15 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
 
   Parameters:
 
-    * session: ID of the session
-    * filename: the artifact file name
+  * session: ID of the session
+  * filename: the artifact file name
 
   Error codes and the corresponding reasons:
 
-    * 404, 'No session with this ID found'
-    * 404, 'Test was not performed, no artifacts.'
-    * 404, 'No such file'
-    * 503, 'File is too large and test is running' (when the file size exceeds 128 kB and some test is running)
+  * 404, 'No session with this ID found'
+  * 404, 'Test was not performed, no artifacts.'
+  * 404, 'No such file'
+  * 503, 'File is too large and test is running' (when the file size exceeds 128 kB and some test is running)
 
 8. **POST /upload?session=...&filename=...**
 
@@ -224,12 +224,12 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
 
   Parameters:
 
-    * session: ID of the session
-    * filename: the name to store the file under
+  * session: ID of the session
+  * filename: the name to store the file under
 
   Error codes and the corresponding reasons:
 
-    * 404, 'Specified session is not running'
+  * 404, 'Specified session is not running'
 
 ### Writing plugins
 
