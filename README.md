@@ -2,6 +2,7 @@ Yandex.Tank API
 ===============
 
 This is an HTTP server that controls Yandex.Tank execution. It allows the client to:
+
 * set a breakpoint before an arbitrary test stage (and reset it later)
 * launch Yandex.Tank and begin the test
 * upload files into the test working directory
@@ -11,13 +12,16 @@ This is an HTTP server that controls Yandex.Tank execution. It allows the client
 
 API-managed Tank
 ------------------
+
 General information on Yandex.Tank installation and usage can be found in its [documentation](http://yandextank.readthedocs.org).
 This section covers the difference between console Tank and API-managed Tank configuration and provides more details on the sequence of the test stages.
 
 ### Tank configuration
+
 API-managed Tank is configured via configuration files only. They have the same syntax and options as the console Tank configs.
 
 The configuration parameters are applied in the following order:
+
   1. common Yandex.Tank configuration files that reside in `/etc/yandex-tank/`
   2. Yandex.Tank API defaults in `/etc/yandex-tank-api/defaults`
   3. **the configuration file sent by the client when launching the test**
@@ -70,6 +74,7 @@ The last session status is temporarily stored after tank exit.
 The test artifacts are stored forever and should be deleted by external means when not needed.
 
 ### Pausing the test sequence
+
 When the session is started, the client can specify the test stage before which the test will be paused (the breakpoint) .
 After completing the stages preceding the breakpoint, the Tank will wait until the breakpoint is moved further. You cannot move the breakpoint back.
 
