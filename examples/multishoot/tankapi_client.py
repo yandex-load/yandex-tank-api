@@ -37,7 +37,7 @@ class tankapi_client(object):
         return r
 
     def run_given(self, session, stage='finished'):
-        '''{"test": test_id, "session": session_id}'''
+        """{"test": test_id, "session": session_id}"""
         url = 'http://%s:%s/run?session=%s&break=%s' % (
             self.api_server, self.api_port, session, stage)
         r = self.get_as_json(url)
