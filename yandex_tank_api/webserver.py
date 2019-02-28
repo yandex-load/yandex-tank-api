@@ -413,7 +413,7 @@ class ApiServer(object):
                 os.makedirs(session_dir)
             except OSError as err:
                 if err.errno != errno.EEXIST:
-                    raise RuntimeError("Failed to create session directory")
+                    raise RuntimeError("Failed to create session directory {}".format(err))
             if self.is_empty_session(session_id):
                 return session_id
             n_attempt += 1
