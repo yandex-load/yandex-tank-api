@@ -32,9 +32,15 @@ def parse_options():
         default="/var/lock",
         help="Directory for lock file")
     parser.add_argument(
+        "--configs-location",
+        action='store',
+        help='set location to look for default yandex-tank configs in',
+        default='/etc',
+        dest='configs_location')
+    parser.add_argument(
         "--ignore-machine-defaults",
         action='store_true',
-        help='Ignore tank defaults from /etc/yandex-tank/',
+        help='Ignore tank defaults from <configs-location>/yandex-tank/',
         default=False,
         dest='ignore_machine_defaults')
     return parser.parse_args()

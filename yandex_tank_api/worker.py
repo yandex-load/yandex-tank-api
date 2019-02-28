@@ -57,7 +57,7 @@ class TankWorker(object):
 
     def __init__(
             self, tank_queue, manager_queue, working_dir, lock_dir, session_id,
-            ignore_machine_defaults):
+            ignore_machine_defaults, configs_location):
 
         # Parameters from manager
         self.tank_queue = tank_queue
@@ -65,6 +65,7 @@ class TankWorker(object):
         self.working_dir = working_dir
         self.session_id = session_id
         self.ignore_machine_defaults = ignore_machine_defaults
+        self.configs_location = configs_location
 
         # State variables
         self.break_at = 'lock'
@@ -97,7 +98,8 @@ class TankWorker(object):
         self.__add_log_file(logger, logging.DEBUG, 'tank.log')
         self.__add_log_file(logger, logging.INFO, 'tank_brief.log')
 
-    def __get_configs_from_dir(self, config_dir):
+    @staticmethod
+    def __get_configs_from_dir(config_dir):
         """
         Returns configs from specified directory, sorted alphabetically
         """
@@ -106,7 +108,7 @@ class TankWorker(object):
             conf_files = os.listdir(config_dir)
             conf_files.sort()
             for filename in conf_files:
-                if fnmatch.fnmatch(filename, '*.ini'):
+                if fnmatch.fnmatch(filename, '*.yaml'):
                     config_file = os.path.realpath(
                         config_dir + os.sep + filename)
                     logger.debug("Adding config file: %s", config_file)
@@ -122,15 +124,15 @@ class TankWorker(object):
         configs = list(
             itt.chain(
                 [resource_filename('yandextank.core', 'config/00-base.ini')],
-                self.__get_configs_from_dir('/etc/yandex-tank/')
+                self.__get_configs_from_dir('{}/yandex-tank/'.format(self.configs_location))
                 if not self.ignore_machine_defaults else [],
                 [
                     resource_filename(
                         __name__, 'config/00-tank-api-defaults.ini')
                 ],
-                self.__get_configs_from_dir('/etc/yandex-tank-api/defaults'),
-                self.__get_configs_from_dir("."),
-                self.__get_configs_from_dir('/etc/yandex-tank-api/override'),
+                self.__get_configs_from_dir('{}/yandex-tank-api/defaults'.format(self.configs_location)),
+                self.__get_configs_from_dir('.'),
+                self.__get_configs_from_dir('{}/yandex-tank-api/override'.format(self.configs_location)),
                 [
                     resource_filename(
                         __name__, 'config/99-tank-api-override.ini')
@@ -278,7 +280,7 @@ def signal_handler(signum, _):
 
 def run(
         tank_queue, manager_queue, work_dir, lock_dir, session_id,
-        ignore_machine_defaults):
+        ignore_machine_defaults, configs_location):
     """
     Target for tank process.
     This is the only function from this module ever used by Manager.
@@ -295,4 +297,4 @@ def run(
     signal.signal(signal.SIGTERM, signal_handler)
     TankWorker(
         tank_queue, manager_queue, work_dir, lock_dir, session_id,
-        ignore_machine_defaults).perform_test()
+        ignore_machine_defaults, configs_location).perform_test()
