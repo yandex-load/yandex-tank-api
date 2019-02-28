@@ -108,7 +108,7 @@ class TankWorker(object):
             conf_files = os.listdir(config_dir)
             conf_files.sort()
             for filename in conf_files:
-                if fnmatch.fnmatch(filename, '*.yaml'):
+                if fnmatch.fnmatch(filename, '*.ini'):
                     config_file = os.path.realpath(
                         config_dir + os.sep + filename)
                     logger.debug("Adding config file: %s", config_file)
