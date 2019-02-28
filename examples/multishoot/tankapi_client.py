@@ -1,7 +1,5 @@
 import json
-import urllib
 import urllib2
-import time
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
@@ -28,7 +26,7 @@ class tankapi_client(object):
         return str_response
 
     def run_new(self, config_contents, stage='finished'):
-        '''{"test": test_id, "session": session_id}'''
+        """{"test": test_id, "session": session_id}"""
         url = 'http://%s:%s/run?break=%s' % (
             self.api_server, self.api_port, stage)
         req = urllib2.Request(url, config_contents)
@@ -55,7 +53,7 @@ class tankapi_client(object):
         return False
 
     def artifact_list(self, test_id):
-        '''['filename1', 'filename2', ...]'''
+        """['filename1', 'filename2', ...]"""
         url = 'http://%s:%s/artifact?test=%s' % (
             self.api_server, self.api_port, test_id)
         # return get_as_json(url) # doesn't work yet

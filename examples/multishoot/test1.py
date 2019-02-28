@@ -1,7 +1,6 @@
 import tankapi_client
 import phout_aggregator
 import time
-import sys
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
