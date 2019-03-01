@@ -37,8 +37,8 @@ class TankRunner(object):
 
         # Create load.ini
         logger.info('Saving tank config to %s', load_ini_path)
-        tank_config_file = open(load_ini_path, 'w')
-        tank_config_file.write(tank_config)
+        with open(load_ini_path, 'w') as tank_config_file:
+            tank_config_file.write(tank_config)
 
         # Create tank queue and put first break there
         self.tank_queue = multiprocessing.Queue()

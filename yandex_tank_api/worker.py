@@ -198,10 +198,8 @@ class TankWorker(object):
         }
         self.manager_queue.put(msg)
         if self.locked:
-            json.dump(
-                msg,
-                open('status.json', 'w'),
-                indent=4)
+            with open('status.json', 'w') as f:
+                json.dump(msg, f, indent=4)
 
     def process_failure(self, reason):
         """

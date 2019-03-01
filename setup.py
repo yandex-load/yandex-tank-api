@@ -2,6 +2,12 @@ from setuptools import setup
 
 from yandex_tank_api import __version__ as version
 
+with open('requirements.txt') as f:
+    requirements = f.readlines()
+
+with open('README.md') as f:
+    readme = f.read()
+
 
 def requireModules(moduleNames=None):
     import re
@@ -14,7 +20,7 @@ def requireModules(moduleNames=None):
     moduleNames.extend(
         filter(
             lambda line: not commentPattern.match(line),
-            open('requirements.txt').readlines()))
+            requirements))
 
     return moduleNames
 
@@ -25,7 +31,7 @@ setup(
     author='Alexey Lavrenuke',
     author_email='direvius@gmail.com',
     description='Yandex.Tank HTTP API',
-    long_description=open('README.md').read(),
+    long_description=readme,
     classifiers=[
         'Development Status :: 2 - Pre-Alpha', 'Intended Audience :: Developers'
     ],

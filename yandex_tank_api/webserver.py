@@ -56,7 +56,7 @@ class APIHandler(tornado.web.RequestHandler):  # pylint: disable=R0904
             return
 
         self.set_header('Content-Type', 'application/json')
-        if 'exc_info' in kwargs and status_code >= 400 and status_code < 500:
+        if 'exc_info' in kwargs and 400 <= status_code < 500:
             self.reply_json(status_code, {'reason': str(kwargs['exc_info'][1])})
         else:
             self.reply_json(status_code, {'reason': self._reason})
@@ -398,6 +398,7 @@ class ApiServer(object):
         """Return file path for given session id"""
         return os.path.join(self._working_dir, session_id, filename)
 
+
     def create_session_dir(self, offered_id):
         """
         Returns generated session id
@@ -406,7 +407,7 @@ class ApiServer(object):
         if not offered_id:
             offered_id = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
         # This should use one or two attempts in typical cases
-        for n_attempt in xrange(10000000000):
+        for n_attempt in range(10000000000):
             session_id = '%s_%010d' % (offered_id, n_attempt)
             session_dir = self.session_dir(session_id)
             try:

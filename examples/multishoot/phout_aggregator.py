@@ -1,5 +1,4 @@
 #!/usr/bin/python
-import sys
 import argparse
 
 BUFFER_BYTES_IN = 300000
@@ -7,10 +6,10 @@ BUFFER_BYTES_OUT = 1000000
 
 
 def phout_reader(filename):
-    f = open(filename, 'r', BUFFER_BYTES_IN)
-    while True:
-        line = f.readline()
-        yield (line, calculate_ts(line))
+    with open(filename, 'r', BUFFER_BYTES_IN) as f:
+        while True:
+            line = f.readline()
+            yield (line, calculate_ts(line))
 
 
 def calculate_ts(line):
@@ -18,8 +17,9 @@ def calculate_ts(line):
     return float(a[0]) - float(a[2]) / 1000
 
 
-def merge_phouts(filenames=[], outfilename='result_phout.txt'):
-    outfile = open(outfilename, 'w', BUFFER_BYTES_OUT)
+def merge_phouts(filenames=None, outfilename='result_phout.txt'):
+    if filenames is None:
+        filenames = []
     readers = []
     current = []
     left_files = []
@@ -33,13 +33,14 @@ def merge_phouts(filenames=[], outfilename='result_phout.txt'):
         except:
             pass
 
-    while len(left_files):
-        i = min(left_files, key=lambda x: current[x][1])
-        outfile.write(current[i][0])
-        try:
-            current[i] = next(readers[i])
-        except:
-            left_files.remove(i)
+    with open(outfilename, 'w', BUFFER_BYTES_OUT) as outfile:
+        while len(left_files):
+            i = min(left_files, key=lambda x: current[x][1])
+            outfile.write(current[i][0])
+            try:
+                current[i] = next(readers[i])
+            except:
+                left_files.remove(i)
 
 
 if __name__ == '__main__':

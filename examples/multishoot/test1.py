@@ -1,4 +1,4 @@
-import tankapi_client
+import tankapiclient
 import phout_aggregator
 import time
 import logging
@@ -8,8 +8,8 @@ api_server_1 = 'tank01.haze.yandex.net'
 api_server_2 = 'tank02.haze.yandex.net'
 api_port = 8888
 
-client1 = tankapi_client.tankapi_client(api_server_1, api_port)
-client2 = tankapi_client.tankapi_client(api_server_2, api_port)
+client1 = tankapiclient.TankapiClient(api_server_1, api_port)
+client2 = tankapiclient.TankapiClient(api_server_2, api_port)
 
 logging.info('Preparing 1st')
 shoot1 = client1.run_new(
