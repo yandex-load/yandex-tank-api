@@ -45,13 +45,14 @@ class TankRunner(object):
         self.set_break(first_break)
 
         ignore_machine_defaults = cfg['ignore_machine_defaults']
+        configs_location = cfg['configs_location']
 
         # Start tank process
         self.tank_process = multiprocessing.Process(
             target=yandex_tank_api.worker.run,
             args=(
                 self.tank_queue, manager_queue, work_dir, lock_dir, session_id,
-                ignore_machine_defaults))
+                ignore_machine_defaults, configs_location))
         self.tank_process.start()
 
     def set_break(self, next_break):
@@ -278,6 +279,7 @@ def run_server(options):
         'ignore_machine_defaults': options.ignore_machine_defaults,
         'tornado_debug': options.debug,
         'lock_dir': options.lock_dir,
+        'configs_location': options.configs_location
     }
 
     root_logger = logging.getLogger()
