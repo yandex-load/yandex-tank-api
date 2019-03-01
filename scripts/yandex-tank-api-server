@@ -9,18 +9,18 @@ def parse_options():
     """ parse command line options """
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--debug",
+        '--debug',
         action='store_true',
         help='Debug mode of torando',
         dest='debug',
         default=False)
     parser.add_argument(
-        "--work-dir",
+        '--work-dir',
         help='Working directory (for tests, etc).',
         default='/var/lib/yandex-tank-api',
         dest='work_dir')
     parser.add_argument(
-        "--log",
+        '--log',
         help='Log file',
         default=None,
         dest='log_file')
@@ -29,16 +29,16 @@ def parse_options():
         '--lock-dir',
         action='store',
         dest='lock_dir',
-        default="/var/lock",
-        help="Directory for lock file")
+        default='/var/lock',
+        help='Directory for lock file')
     parser.add_argument(
-        "--configs-location",
+        '--configs-location',
         action='store',
         help='set location to look for default yandex-tank configs in',
         default='/etc',
         dest='configs_location')
     parser.add_argument(
-        "--ignore-machine-defaults",
+        '--ignore-machine-defaults',
         action='store_true',
         help='Ignore tank defaults from <configs-location>/yandex-tank/',
         default=False,
@@ -53,10 +53,10 @@ def signal_handler(sig, frame):
 
 if __name__ == '__main__':
     logging.basicConfig(
-        level=logging.DEBUG, format="%(asctime)s %(levelname)s: %(message)s")
+        level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s')
     options = parse_options()
 
     try:
         yandex_tank_api.manager.run_server(options)
     except:
-        logging.exception("Uncaught exception:")
+        logging.exception('Uncaught exception:')

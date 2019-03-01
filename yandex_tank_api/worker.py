@@ -166,21 +166,21 @@ class TankWorker(object):
             # Check that there is a break in the message
             if 'break' not in msg:
                 logger.error(
-                    "No break specified in the recieved message from manager")
+                    'No break specified in the recieved message from manager')
                 continue
             brk = msg['break']
             # Check taht the name is valid
             if not common.is_valid_break(brk):
                 logger.error(
-                    "Manager requested break at an unknown stage: %s", brk)
+                    'Manager requested break at an unknown stage: %s', brk)
             # Check that the break is later than br
             elif common.is_A_earlier_than_B(brk, self.break_at):
                 logger.error(
-                    "Recieved break %s which is earlier than "
-                    "current next break %s", brk, self.break_at)
+                    'Recieved break %s which is earlier than '
+                    'current next break %s', brk, self.break_at)
             else:
                 logger.info(
-                    "Changing the next break from %s to %s", self.break_at, brk)
+                    'Changing the next break from %s to %s', self.break_at, brk)
                 self.break_at = brk
                 return
 
@@ -209,7 +209,7 @@ class TankWorker(object):
         - log it
         - add to failures list
         """
-        logger.error("Failure in stage %s:\n%s", self.stage, reason)
+        logger.error('Failure in stage %s:\n%s', self.stage, reason)
         self.failures.append({'stage': self.stage, 'reason': reason})
 
     def _execute_stage(self, stage):
@@ -247,18 +247,18 @@ class TankWorker(object):
                 self._execute_stage(stage)
             except InterruptTest as exc:
                 self.retcode = self.retcode or 1
-                self.process_failure("Interrupted")
+                self.process_failure('Interrupted')
                 if exc.remove_break:
                     self.break_at = 'finished'
             except Exception as ex:
                 self.retcode = self.retcode or 1
                 logger.exception(
-                    "Exception occured, trying to exit gracefully...")
-                self.process_failure("Exception:" + traceback.format_exc(ex))
+                    'Exception occured, trying to exit gracefully...')
+                self.process_failure('Exception:' + traceback.format_exc(ex))
             else:
                 self.done_stages.add(stage)
         else:
-            self.process_failure("skipped")
+            self.process_failure('skipped')
 
         self.report_status('running', True)
 
@@ -268,7 +268,7 @@ class TankWorker(object):
             self.next_stage(stage)
         self.stage = 'finished'
         self.report_status('failed' if self.failures else 'success', True)
-        logger.info("Done performing test with code %s", self.retcode)
+        logger.info('Done performing test with code %s', self.retcode)
 
 
 def signal_handler(signum, _):

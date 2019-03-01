@@ -49,5 +49,5 @@ if __name__ == '__main__':
     parser.add_argument('-o', action='store', dest='outfilename', type=str)
 
     args = parser.parse_args()
-    in_files = args.in_files.split(",")
+    in_files = args.in_files.split(',')
     merge_phouts(in_files, args.outfilename)
