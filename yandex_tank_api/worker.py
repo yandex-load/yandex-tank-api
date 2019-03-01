@@ -20,7 +20,7 @@ import yandextank.core as tankcore
 import yandex_tank_api.common as common
 
 
-logger = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 
 class InterruptTest(BaseException):
@@ -111,10 +111,10 @@ class TankWorker(object):
                 if fnmatch.fnmatch(filename, '*.ini'):
                     config_file = os.path.realpath(
                         config_dir + os.sep + filename)
-                    logger.debug("Adding config file: %s", config_file)
+                    _log.debug("Adding config file: %s", config_file)
                     configs += [config_file]
         except OSError:
-            logger.warning(
+            _log.warning(
                 "Failed to get configs from %s", config_dir, exc_info=True)
 
         return configs
@@ -165,21 +165,21 @@ class TankWorker(object):
             msg = self.tank_queue.get()
             # Check that there is a break in the message
             if 'break' not in msg:
-                logger.error(
+                _log.error(
                     'No break specified in the recieved message from manager')
                 continue
             brk = msg['break']
             # Check taht the name is valid
             if not common.is_valid_break(brk):
-                logger.error(
+                _log.error(
                     'Manager requested break at an unknown stage: %s', brk)
             # Check that the break is later than br
-            elif common.is_A_earlier_than_B(brk, self.break_at):
-                logger.error(
+            elif common.is_a_earlier_than_b(brk, self.break_at):
+                _log.error(
                     'Recieved break %s which is earlier than '
                     'current next break %s', brk, self.break_at)
             else:
-                logger.info(
+                _log.info(
                     'Changing the next break from %s to %s', self.break_at, brk)
                 self.break_at = brk
                 return
@@ -207,7 +207,7 @@ class TankWorker(object):
         - log it
         - add to failures list
         """
-        logger.error('Failure in stage %s:\n%s', self.stage, reason)
+        _log.error('Failure in stage %s:\n%s', self.stage, reason)
         self.failures.append({'stage': self.stage, 'reason': reason})
 
     def _execute_stage(self, stage):
@@ -233,7 +233,7 @@ class TankWorker(object):
         Run it or skip it
         """
 
-        while not common.is_A_earlier_than_B(stage, self.break_at):
+        while not common.is_a_earlier_than_b(stage, self.break_at):
             # We have reached the set break
             # Waiting until another, later, break is set by manager
             self.get_next_break()
@@ -250,7 +250,7 @@ class TankWorker(object):
                     self.break_at = 'finished'
             except Exception as ex:
                 self.retcode = self.retcode or 1
-                logger.exception(
+                _log.exception(
                     'Exception occured, trying to exit gracefully...')
                 self.process_failure('Exception:' + traceback.format_exc(ex))
             else:
@@ -266,7 +266,7 @@ class TankWorker(object):
             self.next_stage(stage)
         self.stage = 'finished'
         self.report_status('failed' if self.failures else 'success', True)
-        logger.info('Done performing test with code %s', self.retcode)
+        _log.info('Done performing test with code %s', self.retcode)
 
 
 def signal_handler(signum, _):

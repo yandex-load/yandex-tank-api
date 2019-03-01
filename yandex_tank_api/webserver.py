@@ -39,10 +39,7 @@ class APIHandler(tornado.web.RequestHandler):  # pylint: disable=R0904
         """
         Reply with a json and a specified code
         """
-        if status_code != 418:
-            self.set_status(status_code)
-        else:
-            self.set_status(status_code, 'I\'m a teapot!')
+        self.set_status(status_code)
         self.set_header('Content-Type', 'application/json')
         reply_str = json.dumps(reply, indent=4)
         self.finish(reply_str)
@@ -146,7 +143,7 @@ class RunHandler(APIHandler):  # pylint: disable=R0904
             return
 
         # 418 if in higher state
-        if common.is_A_earlier_than_B(breakpoint, status_dict['break']):
+        if common.is_a_earlier_than_b(breakpoint, status_dict['break']):
             reply = {
                 'reason': 'I\'m a teapot! I know nothing of time-travel!',
                 'hint': {
@@ -281,7 +278,7 @@ class ArtifactHandler(APIHandler):  # pylint: disable=R0904
             except KeyError:
                 pass
             else:
-                if common.is_A_earlier_than_B(cur_stage, 'postprocess'):
+                if common.is_a_earlier_than_b(cur_stage, 'postprocess'):
                     self.reply_json(
                         503, {
                             'reason':
@@ -398,7 +395,6 @@ class ApiServer(object):
         """Return file path for given session id"""
         return os.path.join(self._working_dir, session_id, filename)
 
-
     def create_session_dir(self, offered_id):
         """
         Returns generated session id
@@ -407,8 +403,8 @@ class ApiServer(object):
         if not offered_id:
             offered_id = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
         # This should use one or two attempts in typical cases
-        for n_attempt in range(10000000000):
-            session_id = '%s_%010d' % (offered_id, n_attempt)
+        for n_attempt in range(100):
+            session_id = '%s_%02d' % (offered_id, n_attempt)
             session_dir = self.session_dir(session_id)
             try:
                 os.makedirs(session_dir)

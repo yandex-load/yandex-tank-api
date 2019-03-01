@@ -59,9 +59,9 @@ TEST_STAGE_ORDER = [stage for stage, _ in TEST_STAGE_ORDER_AND_DEPS]
 TEST_STAGE_DEPS = {stage: dep for stage, dep in TEST_STAGE_ORDER_AND_DEPS}
 
 
-def is_A_earlier_than_B(stageA, stageB):
+def is_a_earlier_than_b(stage_a, stage_b):
     """Slow but reliable"""
-    return TEST_STAGE_ORDER.index(stageA) < TEST_STAGE_ORDER.index(stageB)
+    return TEST_STAGE_ORDER.index(stage_a) < TEST_STAGE_ORDER.index(stage_b)
 
 
 def get_valid_breaks():

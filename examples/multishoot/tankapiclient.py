@@ -1,5 +1,5 @@
 import json
-import urllib2
+from six.moves import urllib as six_urllib
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
@@ -16,7 +16,7 @@ class TankapiClient(object):
 
     @staticmethod
     def get_as_json(url):
-        response = urllib2.urlopen(url)
+        response = six_urllib.request.urlopen(url)
         json_response = response.read()
         logging.debug('API returned %s' % json_response)
         r = json.loads(json_response)
@@ -24,7 +24,7 @@ class TankapiClient(object):
 
     @staticmethod
     def get_as_str(url):
-        response = urllib2.urlopen(url)
+        response = six_urllib.request.urlopen(url)
         str_response = response.read()
         return str_response
 
@@ -32,8 +32,8 @@ class TankapiClient(object):
         """{"test": test_id, "session": session_id}"""
         url = 'http://%s:%s/run?break=%s' % (
             self.api_server, self.api_port, stage)
-        req = urllib2.Request(url, config_contents)
-        response = urllib2.urlopen(req)
+        req = six_urllib.request.Request(url, config_contents)
+        response = six_urllib.request.urlopen(req)
         json_response = response.read()
         logging.debug('API returned %s' % json_response)
         r = json.loads(json_response)

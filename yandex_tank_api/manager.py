@@ -16,7 +16,7 @@ import yandex_tank_api.worker
 import yandex_tank_api.webserver
 
 
-logger = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 
 class TankRunner(object):
@@ -36,7 +36,7 @@ class TankRunner(object):
         load_ini_path = os.path.join(work_dir, 'load.ini')
 
         # Create load.ini
-        logger.info('Saving tank config to %s', load_ini_path)
+        _log.info('Saving tank config to %s', load_ini_path)
         with open(load_ini_path, 'w') as tank_config_file:
             tank_config_file.write(tank_config)
 
@@ -69,7 +69,7 @@ class TankRunner(object):
 
     def join(self):
         """Joins the tank process"""
-        logger.info('Waiting for tank exit...')
+        _log.info('Waiting for tank exit...')
         return self.tank_process.join()
 
     def stop(self, remove_break):
@@ -110,7 +110,7 @@ class Manager(object):
         Resets session state variables
         Should be called only when tank is not running
         """
-        logger.info('Resetting current session variables')
+        _log.info('Resetting current session variables')
         self.session_id = None
         self.tank_runner = None
         self.last_tank_status = 'not started'
@@ -120,7 +120,7 @@ class Manager(object):
         if msg['session'] == self.session_id:
             self.tank_runner.stop(remove_break=False)
         else:
-            logger.error('Can stop only current session')
+            _log.error('Can stop only current session')
 
     def _handle_cmd_set_break(self, msg):
         """New break for running session"""
@@ -132,14 +132,14 @@ class Manager(object):
             self.tank_runner.set_break(msg['break'])
         else:
             # Internal protocol error
-            logger.error(
+            _log.error(
                 'Recieved run command without break:\n%s', json.dumps(msg))
 
     def _handle_cmd_new_session(self, msg):
         """Start new session"""
         if 'session' not in msg or 'config' not in msg:
             # Internal protocol error
-            logger.critical(
+            _log.critical(
                 'Not enough data to start new session: '
                 'both config and test should be present:%s\n', json.dumps(msg))
             return
@@ -166,7 +166,7 @@ class Manager(object):
         """Process command from webserver"""
 
         if 'session' not in msg:
-            logger.error('Bad command: session id not specified')
+            _log.error('Bad command: session id not specified')
             return
 
         cmd = msg['cmd']
@@ -179,7 +179,7 @@ class Manager(object):
             else:
                 self._handle_cmd_new_session(msg)
         else:
-            logger.critical('Unknown command: %s', cmd)
+            _log.critical('Unknown command: %s', cmd)
 
     def _handle_tank_exit(self):
         """
@@ -212,9 +212,9 @@ class Manager(object):
 
     def _handle_webserver_exit(self):
         """Stop tank and raise RuntimeError"""
-        logger.error('Webserver died unexpectedly.')
+        _log.error('Webserver died unexpectedly.')
         if self.tank_runner is not None:
-            logger.warning('Stopping tank...')
+            _log.warning('Stopping tank...')
             self.tank_runner.stop(remove_break=True)
             self.tank_runner.join()
         raise RuntimeError('Unexpected webserver exit')
@@ -241,7 +241,7 @@ class Manager(object):
 
     def _handle_msg(self, msg):
         """Handle message from manager queue"""
-        logger.info('Recieved message:\n%s', json.dumps(msg))
+        _log.info('Recieved message:\n%s', json.dumps(msg))
         if 'cmd' in msg:
             # Recieved command from server
             self._handle_cmd(msg)
@@ -249,7 +249,7 @@ class Manager(object):
             # This is a status message from tank
             self._handle_tank_status(msg)
         else:
-            logger.error('Strange message (not a command and not a status) ')
+            _log.error('Strange message (not a command and not a status) ')
 
     def _handle_tank_status(self, msg):
         """
