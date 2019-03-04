@@ -10,9 +10,11 @@ import os
 import os.path
 import traceback
 import json
+import yaml
 import itertools as itt
-from pkg_resources import resource_filename
+
 import yandextank.core as tankcore
+import threading
 
 # Yandex.Tank.Api modules
 
@@ -43,8 +45,8 @@ class TankCore(tankcore.TankCore):
         return core_class == 'yandex_tank_api.worker.TankCore'
     """
 
-    def __init__(self, tank_worker):
-        super(TankCore, self).__init__()
+    def __init__(self, tank_worker, configs):
+        super(TankCore, self).__init__(configs, threading.Event)
         self.tank_worker = tank_worker
 
     def publish(self, publisher, key, value):
@@ -74,8 +76,13 @@ class TankWorker(object):
         self.retcode = None
         self.locked = False
         self.done_stages = set()
-        self.core = TankCore(self)
-        self.core.lock_dir = lock_dir
+        self.lock_dir = lock_dir
+
+    @common.memoized
+    def core(self):
+        c = TankCore(self, self.__get_configs())
+        c.lock_dir = self.lock_dir
+        return c
 
     def __add_log_file(self, logger, loglevel, filename):
         """Adds FileHandler to logger; adds filename to artifacts"""
@@ -105,14 +112,19 @@ class TankWorker(object):
         """
         configs = []
         try:
-            conf_files = os.listdir(config_dir)
-            conf_files.sort()
-            for filename in conf_files:
-                if fnmatch.fnmatch(filename, '*.ini'):
-                    config_file = os.path.realpath(
+            conf_names = os.listdir(config_dir)
+            conf_names.sort()
+            for filename in conf_names:
+                if fnmatch.fnmatch(filename, '*.yaml'):
+                    config_path = os.path.realpath(
                         config_dir + os.sep + filename)
-                    _log.debug("Adding config file: %s", config_file)
-                    configs += [config_file]
+                    _log.debug("Adding config file: %s", config_path)
+                    with open(config_path) as config_file:
+                        try:
+                            configs.append(yaml.safe_load(config_file))
+                        except yaml.YAMLError:
+                            _log.error('Failed to unyaml a config at {}'.format(config_path))
+
         except OSError:
             _log.warning(
                 "Failed to get configs from %s", config_dir, exc_info=True)
@@ -123,20 +135,11 @@ class TankWorker(object):
         """Returns list of all configs for this test"""
         configs = list(
             itt.chain(
-                [resource_filename('yandextank.core', 'config/00-base.ini')],
                 self.__get_configs_from_dir('{}/yandex-tank/'.format(self.configs_location))
-                if not self.ignore_machine_defaults else [],
-                [
-                    resource_filename(
-                        __name__, 'config/00-tank-api-defaults.ini')
-                ],
-                self.__get_configs_from_dir('{}/yandex-tank-api/defaults'.format(self.configs_location)),
+                    if not self.ignore_machine_defaults else [],
                 self.__get_configs_from_dir('.'),
-                self.__get_configs_from_dir('{}/yandex-tank-api/override'.format(self.configs_location)),
-                [
-                    resource_filename(
-                        __name__, 'config/99-tank-api-override.ini')
-                ], ))
+                )
+        )
         return configs
 
     def __preconfigure(self):
