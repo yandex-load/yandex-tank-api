@@ -33,9 +33,9 @@ class TankRunner(object):
 
         work_dir = os.path.join(cfg['tests_dir'], session_id)
         lock_dir = cfg['lock_dir']
-        load_ini_path = os.path.join(work_dir, 'load.ini')
+        load_ini_path = os.path.join(work_dir, 'load.yaml')
 
-        # Create load.ini
+        # Create load.yaml
         _log.info('Saving tank config to %s', load_ini_path)
         with open(load_ini_path, 'w') as tank_config_file:
             tank_config_file.write(tank_config)
@@ -144,6 +144,7 @@ class Manager(object):
                 'both config and test should be present:%s\n', json.dumps(msg))
             return
         try:
+            print(msg)
             self.tank_runner = TankRunner(
                 cfg=self.cfg,
                 manager_queue=self.manager_queue,

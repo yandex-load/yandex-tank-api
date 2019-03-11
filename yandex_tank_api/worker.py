@@ -12,6 +12,7 @@ import traceback
 import json
 import yaml
 import itertools as itt
+import time
 
 import yandextank.core as tankcore
 import threading
@@ -46,7 +47,7 @@ class TankCore(tankcore.TankCore):
     """
 
     def __init__(self, tank_worker, configs):
-        super(TankCore, self).__init__(configs, threading.Event)
+        super(TankCore, self).__init__(configs, threading.Event())
         self.tank_worker = tank_worker
 
     def publish(self, publisher, key, value):
@@ -74,12 +75,19 @@ class TankWorker(object):
         self.stage = 'not started'
         self.failures = []
         self.retcode = None
-        self.locked = False
         self.done_stages = set()
         self.lock_dir = lock_dir
+        self.lock = None
+
+        print(lock_dir)
+
+    @property
+    def locked(self):
+        return bool(self.lock and self.lock.is_locked(self.core.lock_dir))
 
     @common.memoized
     def core(self):
+        print(self.__get_configs())
         c = TankCore(self, self.__get_configs())
         c.lock_dir = self.lock_dir
         return c
@@ -145,19 +153,33 @@ class TankWorker(object):
     def __preconfigure(self):
         """Logging and TankCore setup"""
         self.__setup_logging()
-        self.core.load_configs(self.__get_configs())
         self.core.load_plugins()
 
     def __get_lock(self):
         """Get lock and remember that we succeded in getting lock"""
-        self.core.get_lock()
-        self.locked = True
+        while not self.core.interrupted.is_set():
+            try:
+                self.lock = tankcore.tankcore.Lock(self.core.test_id, self.core.lock_dir).acquire(self.core.lock_dir,
+                                                               self.core.config.get_option(self.core.SECTION, 'ignore_lock'))
+                break
+            except tankcore.tankcore.LockError:
+                if not self.core.wait_lock:
+                    raise RuntimeError("Lock file present, cannot continue")
+                _log.warning(
+                    "Couldn't get lock. Will retry in 5 seconds...")
+                time.sleep(5)
+        else:
+            raise KeyboardInterrupt
 
     def __end(self):
         return self.core.plugins_end_test(self.retcode)
 
     def __postprocess(self):
         return self.core.plugins_post_process(self.retcode)
+
+    def __release_lock(self):
+        if self.lock is not None:
+            self.lock.release()
 
     def get_next_break(self):
         """
@@ -224,7 +246,7 @@ class TankWorker(object):
             'poll': self.core.wait_for_finish,
             'end': self.__end,
             'postprocess': self.__postprocess,
-            'unlock': self.core.release_lock
+            'unlock': self.__release_lock
         }[stage]()
         if new_retcode is not None:
             self.retcode = new_retcode
