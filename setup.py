@@ -39,6 +39,7 @@ setup(
         'pytest-runner',
         'flake8',
     ],
+    install_requires=requirements,
     tests_require=['pytest', ],
     packages=['yandex_tank_api'],
     package_dir={'yandex_tank_api': 'yandex_tank_api'},
