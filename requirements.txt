@@ -1,3 +1,2 @@
 tornado==5.1.1
-pyyaml
-yandextank>=1.11.1
+yandextank>=1.11
