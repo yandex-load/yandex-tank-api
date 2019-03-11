@@ -40,12 +40,6 @@ setup(
         'flake8',
     ],
     tests_require=['pytest', ],
-    install_requires=[
-        'tornado>=2.1',
-        'pyyaml',
-        'pyjade',
-        'yandextank>=1.8.35',
-    ],
     packages=['yandex_tank_api'],
     package_dir={'yandex_tank_api': 'yandex_tank_api'},
     package_data={

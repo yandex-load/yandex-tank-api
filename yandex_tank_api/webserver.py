@@ -3,6 +3,7 @@
 Yandex.Tank HTTP API: request handling code
 """
 
+import tornado.httpserver
 import tornado.ioloop
 import tornado.web
 import os.path
@@ -14,8 +15,6 @@ import datetime
 import time
 import errno
 import yandex_tank_api.common as common
-from pyjade.ext.tornado import patch_tornado
-patch_tornado()
 
 TRANSFER_SIZE_LIMIT = 128 * 1024
 DEFAULT_HEARTBEAT_TIMEOUT = 600
@@ -447,11 +446,9 @@ class ApiServer(object):
         """
         Run tornado ioloop
         """
-        self.app.listen(8888)
-        ioloop = tornado.ioloop.IOLoop.instance()
-        update_cb = tornado.ioloop.PeriodicCallback(self.check, 300, ioloop)
-        update_cb.start()
-        ioloop.start()
+        server = tornado.httpserver.HTTPServer(self.app)
+        server.listen(8888)
+        tornado.ioloop.IOLoop.current().start()
 
 
 def main(webserver_queue, manager_queue, test_directory, debug):
