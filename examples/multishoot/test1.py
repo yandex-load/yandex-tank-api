@@ -53,7 +53,7 @@ files = client1.artifact_list(shoot1['test'])
 for f in files:
     if f.startswith('phout_') and f.endswith('.log'):
         phout = f
-        logging.info('1st phout named %s' % f)
+        logging.info('1st phout named %s', f)
         break
 logging.info('Downloading 1st phout')
 client1.artifact_store(shoot1['test'], phout, 'phout1.txt')
@@ -63,7 +63,7 @@ files = client2.artifact_list(shoot2['test'])
 for f in files:
     if f.startswith('phout_') and f.endswith('.log'):
         phout = f
-        logging.info('2nd phout named %s' % f)
+        logging.info('2nd phout named %s', f)
         break
 logging.info('Downloading 2nd phout')
 client2.artifact_store(shoot2['test'], phout, 'phout2.txt')
