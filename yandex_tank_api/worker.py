@@ -10,9 +10,12 @@ import os
 import os.path
 import traceback
 import json
+import yaml
 import itertools as itt
-from pkg_resources import resource_filename
+import time
+
 import yandextank.core as tankcore
+import threading
 
 # Yandex.Tank.Api modules
 
@@ -20,7 +23,7 @@ import yandextank.core as tankcore
 import yandex_tank_api.common as common
 
 
-logger = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 
 class InterruptTest(BaseException):
@@ -43,8 +46,8 @@ class TankCore(tankcore.TankCore):
         return core_class == 'yandex_tank_api.worker.TankCore'
     """
 
-    def __init__(self, tank_worker):
-        super(TankCore, self).__init__()
+    def __init__(self, tank_worker, configs):
+        super(TankCore, self).__init__(configs, threading.Event())
         self.tank_worker = tank_worker
 
     def publish(self, publisher, key, value):
@@ -57,7 +60,7 @@ class TankWorker(object):
 
     def __init__(
             self, tank_queue, manager_queue, working_dir, lock_dir, session_id,
-            ignore_machine_defaults):
+            ignore_machine_defaults, configs_location):
 
         # Parameters from manager
         self.tank_queue = tank_queue
@@ -65,16 +68,29 @@ class TankWorker(object):
         self.working_dir = working_dir
         self.session_id = session_id
         self.ignore_machine_defaults = ignore_machine_defaults
+        self.configs_location = configs_location
 
         # State variables
         self.break_at = 'lock'
         self.stage = 'not started'
         self.failures = []
         self.retcode = None
-        self.locked = False
         self.done_stages = set()
-        self.core = TankCore(self)
-        self.core.lock_dir = lock_dir
+        self.lock_dir = lock_dir
+        self.lock = None
+
+        print(lock_dir)
+
+    @property
+    def locked(self):
+        return bool(self.lock and self.lock.is_locked(self.core.lock_dir))
+
+    @common.memoized
+    def core(self):
+        print(self.__get_configs())
+        c = TankCore(self, self.__get_configs())
+        c.lock_dir = self.lock_dir
+        return c
 
     def __add_log_file(self, logger, loglevel, filename):
         """Adds FileHandler to logger; adds filename to artifacts"""
@@ -97,22 +113,28 @@ class TankWorker(object):
         self.__add_log_file(logger, logging.DEBUG, 'tank.log')
         self.__add_log_file(logger, logging.INFO, 'tank_brief.log')
 
-    def __get_configs_from_dir(self, config_dir):
+    @staticmethod
+    def __get_configs_from_dir(config_dir):
         """
         Returns configs from specified directory, sorted alphabetically
         """
         configs = []
         try:
-            conf_files = os.listdir(config_dir)
-            conf_files.sort()
-            for filename in conf_files:
-                if fnmatch.fnmatch(filename, '*.ini'):
-                    config_file = os.path.realpath(
+            conf_names = os.listdir(config_dir)
+            conf_names.sort()
+            for filename in conf_names:
+                if fnmatch.fnmatch(filename, '*.yaml'):
+                    config_path = os.path.realpath(
                         config_dir + os.sep + filename)
-                    logger.debug("Adding config file: %s", config_file)
-                    configs += [config_file]
+                    _log.debug("Adding config file: %s", config_path)
+                    with open(config_path) as config_file:
+                        try:
+                            configs.append(yaml.safe_load(config_file))
+                        except yaml.YAMLError:
+                            _log.error('Failed to unyaml a config at {}'.format(config_path))
+
         except OSError:
-            logger.warning(
+            _log.warning(
                 "Failed to get configs from %s", config_dir, exc_info=True)
 
         return configs
@@ -121,38 +143,43 @@ class TankWorker(object):
         """Returns list of all configs for this test"""
         configs = list(
             itt.chain(
-                [resource_filename('yandextank.core', 'config/00-base.ini')],
-                self.__get_configs_from_dir('/etc/yandex-tank/')
-                if not self.ignore_machine_defaults else [],
-                [
-                    resource_filename(
-                        __name__, 'config/00-tank-api-defaults.ini')
-                ],
-                self.__get_configs_from_dir('/etc/yandex-tank-api/defaults'),
-                self.__get_configs_from_dir("."),
-                self.__get_configs_from_dir('/etc/yandex-tank-api/override'),
-                [
-                    resource_filename(
-                        __name__, 'config/99-tank-api-override.ini')
-                ], ))
+                self.__get_configs_from_dir('{}/yandex-tank/'.format(self.configs_location))
+                    if not self.ignore_machine_defaults else [],
+                self.__get_configs_from_dir('.'),
+                )
+        )
         return configs
 
     def __preconfigure(self):
         """Logging and TankCore setup"""
         self.__setup_logging()
-        self.core.load_configs(self.__get_configs())
         self.core.load_plugins()
 
     def __get_lock(self):
         """Get lock and remember that we succeded in getting lock"""
-        self.core.get_lock()
-        self.locked = True
+        while not self.core.interrupted.is_set():
+            try:
+                self.lock = tankcore.tankcore.Lock(self.core.test_id, self.core.lock_dir).acquire(self.core.lock_dir,
+                                                               self.core.config.get_option(self.core.SECTION, 'ignore_lock'))
+                break
+            except tankcore.tankcore.LockError:
+                if not self.core.wait_lock:
+                    raise RuntimeError("Lock file present, cannot continue")
+                _log.warning(
+                    "Couldn't get lock. Will retry in 5 seconds...")
+                time.sleep(5)
+        else:
+            raise KeyboardInterrupt
 
     def __end(self):
         return self.core.plugins_end_test(self.retcode)
 
     def __postprocess(self):
         return self.core.plugins_post_process(self.retcode)
+
+    def __release_lock(self):
+        if self.lock is not None:
+            self.lock.release()
 
     def get_next_break(self):
         """
@@ -163,22 +190,22 @@ class TankWorker(object):
             msg = self.tank_queue.get()
             # Check that there is a break in the message
             if 'break' not in msg:
-                logger.error(
-                    "No break specified in the recieved message from manager")
+                _log.error(
+                    'No break specified in the recieved message from manager')
                 continue
             brk = msg['break']
             # Check taht the name is valid
             if not common.is_valid_break(brk):
-                logger.error(
-                    "Manager requested break at an unknown stage: %s", brk)
+                _log.error(
+                    'Manager requested break at an unknown stage: %s', brk)
             # Check that the break is later than br
-            elif common.is_A_earlier_than_B(brk, self.break_at):
-                logger.error(
-                    "Recieved break %s which is earlier than "
-                    "current next break %s", brk, self.break_at)
+            elif common.is_a_earlier_than_b(brk, self.break_at):
+                _log.error(
+                    'Recieved break %s which is earlier than '
+                    'current next break %s', brk, self.break_at)
             else:
-                logger.info(
-                    "Changing the next break from %s to %s", self.break_at, brk)
+                _log.info(
+                    'Changing the next break from %s to %s', self.break_at, brk)
                 self.break_at = brk
                 return
 
@@ -196,10 +223,8 @@ class TankWorker(object):
         }
         self.manager_queue.put(msg)
         if self.locked:
-            json.dump(
-                msg,
-                open('status.json', 'w'),
-                indent=4)
+            with open('status.json', 'w') as f:
+                json.dump(msg, f, indent=4)
 
     def process_failure(self, reason):
         """
@@ -207,7 +232,7 @@ class TankWorker(object):
         - log it
         - add to failures list
         """
-        logger.error("Failure in stage %s:\n%s", self.stage, reason)
+        _log.error('Failure in stage %s:\n%s', self.stage, reason)
         self.failures.append({'stage': self.stage, 'reason': reason})
 
     def _execute_stage(self, stage):
@@ -221,7 +246,7 @@ class TankWorker(object):
             'poll': self.core.wait_for_finish,
             'end': self.__end,
             'postprocess': self.__postprocess,
-            'unlock': self.core.release_lock
+            'unlock': self.__release_lock
         }[stage]()
         if new_retcode is not None:
             self.retcode = new_retcode
@@ -233,7 +258,7 @@ class TankWorker(object):
         Run it or skip it
         """
 
-        while not common.is_A_earlier_than_B(stage, self.break_at):
+        while not common.is_a_earlier_than_b(stage, self.break_at):
             # We have reached the set break
             # Waiting until another, later, break is set by manager
             self.get_next_break()
@@ -245,18 +270,18 @@ class TankWorker(object):
                 self._execute_stage(stage)
             except InterruptTest as exc:
                 self.retcode = self.retcode or 1
-                self.process_failure("Interrupted")
+                self.process_failure('Interrupted')
                 if exc.remove_break:
                     self.break_at = 'finished'
             except Exception as ex:
                 self.retcode = self.retcode or 1
-                logger.exception(
-                    "Exception occured, trying to exit gracefully...")
-                self.process_failure("Exception:" + traceback.format_exc(ex))
+                _log.exception(
+                    'Exception occured, trying to exit gracefully...')
+                self.process_failure('Exception:' + traceback.format_exc(ex))
             else:
                 self.done_stages.add(stage)
         else:
-            self.process_failure("skipped")
+            self.process_failure('skipped')
 
         self.report_status('running', True)
 
@@ -266,7 +291,7 @@ class TankWorker(object):
             self.next_stage(stage)
         self.stage = 'finished'
         self.report_status('failed' if self.failures else 'success', True)
-        logger.info("Done performing test with code %s", self.retcode)
+        _log.info('Done performing test with code %s', self.retcode)
 
 
 def signal_handler(signum, _):
@@ -278,7 +303,7 @@ def signal_handler(signum, _):
 
 def run(
         tank_queue, manager_queue, work_dir, lock_dir, session_id,
-        ignore_machine_defaults):
+        ignore_machine_defaults, configs_location):
     """
     Target for tank process.
     This is the only function from this module ever used by Manager.
@@ -295,4 +320,4 @@ def run(
     signal.signal(signal.SIGTERM, signal_handler)
     TankWorker(
         tank_queue, manager_queue, work_dir, lock_dir, session_id,
-        ignore_machine_defaults).perform_test()
+        ignore_machine_defaults, configs_location).perform_test()

@@ -16,7 +16,7 @@ import yandex_tank_api.worker
 import yandex_tank_api.webserver
 
 
-logger = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 
 class TankRunner(object):
@@ -33,25 +33,26 @@ class TankRunner(object):
 
         work_dir = os.path.join(cfg['tests_dir'], session_id)
         lock_dir = cfg['lock_dir']
-        load_ini_path = os.path.join(work_dir, 'load.ini')
+        load_ini_path = os.path.join(work_dir, 'load.yaml')
 
-        # Create load.ini
-        logger.info("Saving tank config to %s", load_ini_path)
-        tank_config_file = open(load_ini_path, 'w')
-        tank_config_file.write(tank_config)
+        # Create load.yaml
+        _log.info('Saving tank config to %s', load_ini_path)
+        with open(load_ini_path, 'w') as tank_config_file:
+            tank_config_file.write(tank_config)
 
         # Create tank queue and put first break there
         self.tank_queue = multiprocessing.Queue()
         self.set_break(first_break)
 
         ignore_machine_defaults = cfg['ignore_machine_defaults']
+        configs_location = cfg['configs_location']
 
         # Start tank process
         self.tank_process = multiprocessing.Process(
             target=yandex_tank_api.worker.run,
             args=(
                 self.tank_queue, manager_queue, work_dir, lock_dir, session_id,
-                ignore_machine_defaults))
+                ignore_machine_defaults, configs_location))
         self.tank_process.start()
 
     def set_break(self, next_break):
@@ -68,7 +69,7 @@ class TankRunner(object):
 
     def join(self):
         """Joins the tank process"""
-        logger.info("Waiting for tank exit...")
+        _log.info('Waiting for tank exit...')
         return self.tank_process.join()
 
     def stop(self, remove_break):
@@ -109,7 +110,7 @@ class Manager(object):
         Resets session state variables
         Should be called only when tank is not running
         """
-        logger.info("Resetting current session variables")
+        _log.info('Resetting current session variables')
         self.session_id = None
         self.tank_runner = None
         self.last_tank_status = 'not started'
@@ -119,30 +120,31 @@ class Manager(object):
         if msg['session'] == self.session_id:
             self.tank_runner.stop(remove_break=False)
         else:
-            logger.error("Can stop only current session")
+            _log.error('Can stop only current session')
 
     def _handle_cmd_set_break(self, msg):
         """New break for running session"""
         if msg['session'] != self.session_id:
             raise RuntimeError(
-                "Webserver requested to start session "
-                "when another one is already running")
+                'Webserver requested to start session '
+                'when another one is already running')
         elif 'break' in msg:
             self.tank_runner.set_break(msg['break'])
         else:
             # Internal protocol error
-            logger.error(
-                "Recieved run command without break:\n%s", json.dumps(msg))
+            _log.error(
+                'Recieved run command without break:\n%s', json.dumps(msg))
 
     def _handle_cmd_new_session(self, msg):
         """Start new session"""
         if 'session' not in msg or 'config' not in msg:
             # Internal protocol error
-            logger.critical(
-                "Not enough data to start new session: "
-                "both config and test should be present:%s\n", json.dumps(msg))
+            _log.critical(
+                'Not enough data to start new session: '
+                'both config and test should be present:%s\n', json.dumps(msg))
             return
         try:
+            print(msg)
             self.tank_runner = TankRunner(
                 cfg=self.cfg,
                 manager_queue=self.manager_queue,
@@ -165,7 +167,7 @@ class Manager(object):
         """Process command from webserver"""
 
         if 'session' not in msg:
-            logger.error("Bad command: session id not specified")
+            _log.error('Bad command: session id not specified')
             return
 
         cmd = msg['cmd']
@@ -178,7 +180,7 @@ class Manager(object):
             else:
                 self._handle_cmd_new_session(msg)
         else:
-            logger.critical("Unknown command: %s", cmd)
+            _log.critical('Unknown command: %s', cmd)
 
     def _handle_tank_exit(self):
         """
@@ -186,7 +188,7 @@ class Manager(object):
         Report if tank died unexpectedly.
         Reset session.
         """
-        logging.info("Tank exit, sleeping 1 s and handling remaining messages")
+        logging.info('Tank exit, sleeping 1 s and handling remaining messages')
         time.sleep(1)
         while True:
             try:
@@ -201,8 +203,8 @@ class Manager(object):
             self.webserver_queue.put({
                 'session': self.session_id,
                 'status': 'failed',
-                'reason': "Tank died unexpectedly. Last reported "
-                "status: % s, worker exitcode: % s" % (
+                'reason': 'Tank died unexpectedly. Last reported '
+                'status: % s, worker exitcode: % s' % (
                     self.last_tank_status,
                     self.tank_runner.get_exitcode() if self.tank_runner else None)
             })
@@ -211,12 +213,12 @@ class Manager(object):
 
     def _handle_webserver_exit(self):
         """Stop tank and raise RuntimeError"""
-        logger.error("Webserver died unexpectedly.")
+        _log.error('Webserver died unexpectedly.')
         if self.tank_runner is not None:
-            logger.warning("Stopping tank...")
+            _log.warning('Stopping tank...')
             self.tank_runner.stop(remove_break=True)
             self.tank_runner.join()
-        raise RuntimeError("Unexpected webserver exit")
+        raise RuntimeError('Unexpected webserver exit')
 
     def run(self):
         """
@@ -240,7 +242,7 @@ class Manager(object):
 
     def _handle_msg(self, msg):
         """Handle message from manager queue"""
-        logger.info("Recieved message:\n%s", json.dumps(msg))
+        _log.info('Recieved message:\n%s', json.dumps(msg))
         if 'cmd' in msg:
             # Recieved command from server
             self._handle_cmd(msg)
@@ -248,7 +250,7 @@ class Manager(object):
             # This is a status message from tank
             self._handle_tank_status(msg)
         else:
-            logger.error("Strange message (not a command and not a status) ")
+            _log.error('Strange message (not a command and not a status) ')
 
     def _handle_tank_status(self, msg):
         """
@@ -278,6 +280,7 @@ def run_server(options):
         'ignore_machine_defaults': options.ignore_machine_defaults,
         'tornado_debug': options.debug,
         'lock_dir': options.lock_dir,
+        'configs_location': options.configs_location
     }
 
     root_logger = logging.getLogger()
@@ -289,16 +292,16 @@ def run_server(options):
             options.log_file, maxBytes=1000000, backupCount=16)
 
     handler.setFormatter(
-        logging.Formatter("%(asctime)s [%(levelname)s] %(name)s %(message)s"))
+        logging.Formatter('%(asctime)s [%(levelname)s] %(name)s %(message)s'))
     root_logger.addHandler(handler)
 
     logger = logging.getLogger(__name__)
     try:
-        logger.info("Starting server")
+        logger.info('Starting server')
         Manager(cfg).run()
     except KeyboardInterrupt:
-        logger.info("Interrupted, terminating")
+        logger.info('Interrupted, terminating')
     except Exception:
-        logger.exception("Unhandled exception in manager.run_server:")
+        logger.exception('Unhandled exception in manager.run_server:')
     except:
-        logger.error("Caught something strange in manager.run_server")
+        logger.error('Caught something strange in manager.run_server')

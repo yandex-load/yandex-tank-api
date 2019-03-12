@@ -1,3 +1,7 @@
+import json
+import requests
+
+
 class TankAPIClient(object):
     def __init__(self, api_address, api_port=8888):
         self.api_address = api_address

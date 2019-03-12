@@ -1,45 +1,46 @@
 import json
-import urllib
-import urllib2
-import time
+from six.moves import urllib as six_urllib
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
 
-class tankapi_client(object):
+class TankapiClient(object):
     def __init__(self, api_server, api_port=8888):
         self.api_server = api_server
         self.api_port = api_port
 
-    def slurp(self, filename):
-        f = open(filename, 'r')
-        return f.read()
+    @staticmethod
+    def slurp(filename):
+        with open(filename, 'r') as f:
+            return f.read()
 
-    def get_as_json(self, url):
-        response = urllib2.urlopen(url)
+    @staticmethod
+    def get_as_json(url):
+        response = six_urllib.request.urlopen(url)
         json_response = response.read()
-        logging.debug("API returned %s" % (json_response))
+        logging.debug('API returned %s', json_response)
         r = json.loads(json_response)
         return r
 
-    def get_as_str(self, url):
-        response = urllib2.urlopen(url)
+    @staticmethod
+    def get_as_str(url):
+        response = six_urllib.request.urlopen(url)
         str_response = response.read()
         return str_response
 
     def run_new(self, config_contents, stage='finished'):
-        '''{"test": test_id, "session": session_id}'''
+        """{"test": test_id, "session": session_id}"""
         url = 'http://%s:%s/run?break=%s' % (
             self.api_server, self.api_port, stage)
-        req = urllib2.Request(url, config_contents)
-        response = urllib2.urlopen(req)
+        req = six_urllib.request.Request(url, config_contents)
+        response = six_urllib.request.urlopen(req)
         json_response = response.read()
-        logging.debug("API returned %s" % (json_response))
+        logging.debug('API returned %s', json_response)
         r = json.loads(json_response)
         return r
 
     def run_given(self, session, stage='finished'):
-        '''{"test": test_id, "session": session_id}'''
+        """{"test": test_id, "session": session_id}"""
         url = 'http://%s:%s/run?session=%s&break=%s' % (
             self.api_server, self.api_port, session, stage)
         r = self.get_as_json(url)
@@ -55,13 +56,13 @@ class tankapi_client(object):
         return False
 
     def artifact_list(self, test_id):
-        '''['filename1', 'filename2', ...]'''
+        """["filename1", "filename2", ...]"""
         url = 'http://%s:%s/artifact?test=%s' % (
             self.api_server, self.api_port, test_id)
         # return get_as_json(url) # doesn't work yet
 
         str_response = self.get_as_str(url)
-        logging.debug("API returned %s" % (str_response))
+        logging.debug('API returned %s', str_response)
         str_response = str_response.replace('"[', '')
         str_response = str_response.replace(']"', '')
         str_response = str_response.replace(' ', '')
@@ -73,5 +74,5 @@ class tankapi_client(object):
         url = 'http://%s:%s/artifact?test=%s&filename=%s' % (
             self.api_server, self.api_port, test_id, remote_filename)
         contents = self.get_as_str(url)
-        f = open(local_filename, 'w')
-        f.write(contents)
+        with open(local_filename, 'w') as f:
+            f.write(contents)
