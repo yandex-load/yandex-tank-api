@@ -14,7 +14,10 @@ import multiprocessing
 import datetime
 import time
 import errno
+import yaml
 import yandex_tank_api.common as common
+from yandextank.validator.validator import TankConfig
+from yandextank.core.consoleworker import load_core_base_cfg, load_local_base_cfgs
 
 TRANSFER_SIZE_LIMIT = 128 * 1024
 DEFAULT_HEARTBEAT_TIMEOUT = 600
@@ -56,6 +59,27 @@ class APIHandler(tornado.web.RequestHandler):  # pylint: disable=R0904
             self.reply_json(status_code, {'reason': str(kwargs['exc_info'][1])})
         else:
             self.reply_json(status_code, {'reason': self._reason})
+
+
+class ValidateConfgiHandler(APIHandler):  # pylint: disable=R0904
+    """
+    Handles POST /validate
+    """
+
+    def post(self):
+        config = self.request.body
+        try:
+            config = yaml.safe_load(config)
+        except yaml.YAMLError:
+            self.reply_reason(400, 'Config is not a valid YAML')
+            return
+        _, errors, configinitial = TankConfig(
+            [load_core_base_cfg()] + load_local_base_cfgs() + [config],
+            with_dynamic_options=False
+        ).validate()
+
+        self.reply_json(200, {'config': configinitial, 'errors': errors})
+        return
 
 
 class RunHandler(APIHandler):  # pylint: disable=R0904
@@ -326,6 +350,7 @@ class ApiServer(object):
         handler_params = dict(server=self)
 
         handlers = [
+            (r'/validate', ValidateConfgiHandler, handler_params),
             (r'/run', RunHandler, handler_params),
             (r'/stop', StopHandler, handler_params),
             (r'/status', StatusHandler, handler_params),
