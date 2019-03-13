@@ -95,9 +95,27 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
 
 ### List of API requests
 
-1. **POST /run?[test=...]&[break=...]**
+1. **POST /validate**
 
-  Request body: Yandex.Tank config in .ini format (the same as for console Tank)
+  Request body: Yandex.Tank config in .yaml format (the same as for console Tank)
+
+  Checks if config provided is valid within local defaults
+
+  Reply on success:     
+  ```javascript
+  {
+    "config": "<yaml string>", // your config
+    "errors": [] // empty if valid
+  }
+  ```
+
+  Error codes and corresponding reasons in the reply:
+
+  * 400, 'Config is not a valid YAML.'
+
+2. **POST /run?[test=...]&[break=...]**
+
+  Request body: Yandex.Tank config in .yaml format (the same as for console Tank)
 
   Creates a new session with an unique *session ID* and launches a new Tank worker.
 
@@ -107,7 +125,7 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
   * break: the test stage before which the tank will stop and wait until the next break is set. *Default: "finished"*
 
   Reply on success:     
-  ```json
+  ```javascript
   {
     "session": "20150625210015_0000000001", //ID of the launched session
     "test": "20150625210015_0000000001" //Deprecated, do not use
@@ -121,7 +139,7 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
   * 409, 'The test with this ID has already finished.'
   * 503, 'Another session is already running.'
 
-2. **GET /run?session=...&[break=...]**
+3. **GET /run?session=...&[break=...]**
 
   Sets a new break point for the running session.
 
@@ -138,7 +156,7 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
   * 418, ... (returned when client tries to move the break point back)
   * 500, 'Session failed.'
 
-3. **GET /stop?session=...**
+4. **GET /stop?session=...**
 
   Terminates the current test.
 
@@ -152,7 +170,7 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
   * 404, 'No session with this ID.'
   * 409, 'This session is already stopped.'
 
-4. **GET /status?session=...**
+5. **GET /status?session=...**
 
   Returns the status of the specified session.
   Parameters:
@@ -160,7 +178,7 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
   * session: ID of the session.
 
   Status examples:
-  ```json
+  ```javascript
   {
     "status": "running",
     "stage_completed": true,
@@ -171,7 +189,7 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
   }
   ```
 
-  ```json
+  ```javascript
   {
     "status": "failed", 
     "retcode": 1, 
@@ -192,11 +210,11 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
 
   * 404, 'No session with this ID.'
 
-5. **GET /status?**
+6. **GET /status?**
 
   Returns a JSON object where keys are known session IDs and values are the corresponding statuses.
 
-6. **GET /artifact?session=...**
+7. **GET /artifact?session=...**
 
   Returns a JSON array of artifact filenames.
 
@@ -209,7 +227,7 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
   * 404, 'No test with this ID found.'
   * 404, 'Test was not performed, no artifacts.'
 
-7. **GET /artifact?session=...&filename=...**
+8. **GET /artifact?session=...&filename=...**
 
   Sends the specified artifact file to the client.
 
@@ -225,7 +243,7 @@ All handles, except for /artifact, return JSON. On errors this is a JSON object 
   * 404, 'No such file'
   * 503, 'File is too large and test is running' (when the file size exceeds 128 kB and some test is running)
 
-8. **POST /upload?session=...&filename=...**
+9. **POST /upload?session=...&filename=...**
 
   Stores the request body on the server in the tank working directory for the session under the specified filename.
   The session should be running.
