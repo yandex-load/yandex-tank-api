@@ -10,6 +10,11 @@ This is an HTTP server that controls Yandex.Tank execution. It allows the client
 * obtain the test status
 * download the artifacts in a safe manner, without interference to another tests
 
+Start API server
+----------------
+by running ```yandex-tank-api-server [options...]``` in console
+
+
 API-managed Tank
 ------------------
 
