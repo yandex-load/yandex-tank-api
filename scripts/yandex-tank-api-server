@@ -43,6 +43,12 @@ def parse_options():
         help='Ignore tank defaults from <configs-location>/yandex-tank/',
         default=False,
         dest='ignore_machine_defaults')
+    parser.add_argument(
+        '--disposable',
+        action='store_true',
+        help='exit after one test',
+        default=False,
+        dest='disposable')
     return parser.parse_args()
 
 
