@@ -15,6 +15,7 @@ import itertools as itt
 import time
 
 import yandextank.core as tankcore
+import yandextank.core.consoleworker as core_console
 import threading
 
 # Yandex.Tank.Api modules
@@ -143,6 +144,8 @@ class TankWorker(object):
         """Returns list of all configs for this test"""
         configs = list(
             itt.chain(
+                [core_console.load_core_base_cfg()]
+                    if not self.ignore_machine_defaults else [],
                 self.__get_configs_from_dir('{}/yandex-tank/'.format(self.configs_location))
                     if not self.ignore_machine_defaults else [],
                 self.__get_configs_from_dir('.'),
