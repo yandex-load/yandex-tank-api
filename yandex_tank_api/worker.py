@@ -53,7 +53,7 @@ class TankCore(tankcore.TankCore):
 
     def publish(self, publisher, key, value):
         super(TankCore, self).publish(publisher, key, value)
-        self.tank_worker.report_status('running', 'false')
+        self.tank_worker.report_status('running', False)
 
 
 class TankWorker(object):
