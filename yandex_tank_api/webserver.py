@@ -70,8 +70,12 @@ class ValidateConfgiHandler(APIHandler):  # pylint: disable=R0904
         config = self.request.body
         try:
             config = yaml.safe_load(config)
+            assert isinstance(config, dict), 'Config must be YAML dict'
         except yaml.YAMLError:
             self.reply_reason(400, 'Config is not a valid YAML')
+            return
+        except AssertionError as aexc:
+            self.reply_reason(400, repr(aexc))
             return
         _, errors, configinitial = TankConfig(
             [load_core_base_cfg()] + load_local_base_cfgs() + [config],
