@@ -91,6 +91,7 @@ class TankWorker(object):
         print(self.__get_configs())
         c = TankCore(self, self.__get_configs())
         c.lock_dir = self.lock_dir
+        c.__setattr__('__session_id', self.session_id)
         return c
 
     def __add_log_file(self, logger, loglevel, filename):
@@ -211,6 +212,29 @@ class TankWorker(object):
                     'Changing the next break from %s to %s', self.break_at, brk)
                 self.break_at = brk
                 return
+
+    def answer(self, plugin, attr):
+        """
+        answers for /ask handler
+        :param plugin: core plugin
+        :param attr: plugin attr name
+        :return: attr value or None
+        """
+        try:
+            plugin = self.core.plugins[plugin]
+            a = plugin.__dict__.get(attr)
+        except KeyError as exc:
+            a = repr(exc)
+
+        msg = {
+            'plugin': plugin,
+            'attr': attr,
+            'answer': a
+        }
+        self.manager_queue.put(msg)
+        if self.locked:
+            with open('{}.{}'.format(plugin, attr), 'w') as f:
+                json.dump(msg, f, indent=4)
 
     def report_status(self, status, stage_completed):
         """Report status to manager and dump status.json, if required"""

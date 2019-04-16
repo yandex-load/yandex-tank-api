@@ -13,9 +13,9 @@ import uuid
 import multiprocessing
 import datetime
 import time
-import errno
 import yaml
 import yandex_tank_api.common as common
+from retrying import retry
 from yandextank.validator.validator import TankConfig
 from yandextank.core.consoleworker import load_core_base_cfg, load_local_base_cfgs
 
@@ -423,6 +423,7 @@ class ApiServer(object):
         """Return file path for given session id"""
         return os.path.join(self._working_dir, session_id, filename)
 
+    @retry(stop_max_attempt_number=10, retry_on_exception=lambda e: isinstance(e, OSError))
     def create_session_dir(self, offered_id):
         """
         Returns generated session id
@@ -430,19 +431,10 @@ class ApiServer(object):
         """
         if not offered_id:
             offered_id = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-        # This should use one or two attempts in typical cases
-        for n_attempt in range(100):
-            session_id = '%s_%02d' % (offered_id, n_attempt)
-            session_dir = self.session_dir(session_id)
-            try:
-                os.makedirs(session_dir)
-            except OSError as err:
-                if err.errno != errno.EEXIST:
-                    raise RuntimeError('Failed to create session directory {}'.format(err))
-            if self.is_empty_session(session_id):
-                return session_id
-            n_attempt += 1
-        raise RuntimeError('Failed to generate session id')
+        session_id = '{}_{}'.format(offered_id, uuid.uuid4().hex)
+        session_dir = self.session_dir(session_id)
+        os.makedirs(session_dir)
+        return session_id
 
     def is_empty_session(self, session_id):
         """Return true if the session did not get past the lock stage"""
