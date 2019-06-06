@@ -241,7 +241,7 @@ class TankWorker(object):
         msg = {
             'status': status,
             'session': self.session_id,
-            'current_stage': self.stage,
+            'current_stage': 'prepared' if self.stage == 'prepare' and stage_completed else self.stage,
             'stage_completed': stage_completed,
             'break': self.break_at,
             'failures': self.failures,
