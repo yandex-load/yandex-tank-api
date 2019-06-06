@@ -212,9 +212,9 @@ class TankWorker(object):
     def report_status(self, status, stage_completed):
         """Report status to manager and dump status.json, if required"""
         msg = {
-            'status': status,
+            'status': 'prepared' if self.stage == 'prepare' and stage_completed else status,
             'session': self.session_id,
-            'current_stage': 'prepared' if self.stage == 'prepare' and stage_completed else self.stage,
+            'current_stage': self.stage,
             'stage_completed': stage_completed,
             'break': self.break_at,
             'failures': self.failures,
