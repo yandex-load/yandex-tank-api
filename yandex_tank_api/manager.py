@@ -103,13 +103,15 @@ class Manager(object):
         self.webserver_process.daemon = True
         self.webserver_process.start()
 
-        self._reset_session()
+        self._reset_session(ignore_disposable=True)
 
-    def _reset_session(self):
+    def _reset_session(self, ignore_disposable=False):
         """
         Resets session state variables
         Should be called only when tank is not running
         """
+        if self.cfg['disposable'] and not ignore_disposable:
+            raise KeyboardInterrupt()
         _log.info('Resetting current session variables')
         self.session_id = None
         self.tank_runner = None
@@ -280,7 +282,8 @@ def run_server(options):
         'ignore_machine_defaults': options.ignore_machine_defaults,
         'tornado_debug': options.debug,
         'lock_dir': options.lock_dir,
-        'configs_location': options.configs_location
+        'configs_location': options.configs_location,
+        'disposable': options.disposable,
     }
 
     root_logger = logging.getLogger()
