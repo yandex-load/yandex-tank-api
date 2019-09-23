@@ -47,8 +47,8 @@ class TankCore(tankcore.TankCore):
         return core_class == 'yandex_tank_api.worker.TankCore'
     """
 
-    def __init__(self, tank_worker, configs):
-        super(TankCore, self).__init__(configs, threading.Event())
+    def __init__(self, tank_worker, configs, **kwargs):
+        super(TankCore, self).__init__(configs, threading.Event(), **kwargs)
         self.tank_worker = tank_worker
 
     def publish(self, publisher, key, value):
@@ -304,7 +304,7 @@ class TankWorker(object):
                 self.retcode = self.retcode or 1
                 _log.exception(
                     'Exception occured, trying to exit gracefully...')
-                self.process_failure('Exception:' + traceback.format_exc(ex))
+                self.process_failure('Exception:' + traceback.format_exc())
             else:
                 self.done_stages.add(stage)
         else:

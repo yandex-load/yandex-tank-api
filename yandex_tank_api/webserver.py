@@ -82,7 +82,7 @@ class ValidateConfgiHandler(APIHandler):  # pylint: disable=R0904
             with_dynamic_options=False
         ).validate()
 
-        self.reply_json(200, {'config': configinitial, 'errors': errors})
+        self.reply_json(200, {'config': yaml.safe_dump(config), 'errors': errors})
         return
 
 
