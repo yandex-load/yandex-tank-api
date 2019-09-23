@@ -8,7 +8,7 @@ import multiprocessing
 import logging
 import logging.handlers
 import traceback
-import json
+import six
 import time
 
 import yandex_tank_api.common
@@ -38,7 +38,7 @@ class TankRunner(object):
         # Create load.yaml
         _log.info('Saving tank config to %s', load_ini_path)
         with open(load_ini_path, 'w') as tank_config_file:
-            tank_config_file.write(tank_config)
+            tank_config_file.write(six.ensure_str(tank_config))
 
         # Create tank queue and put first break there
         self.tank_queue = multiprocessing.Queue()
@@ -133,7 +133,7 @@ class Manager(object):
         else:
             # Internal protocol error
             _log.error(
-                'Recieved run command without break:\n%s', json.dumps(msg))
+                'Recieved run command without break:\n%s', msg)
 
     def _handle_cmd_new_session(self, msg):
         """Start new session"""
@@ -141,7 +141,7 @@ class Manager(object):
             # Internal protocol error
             _log.critical(
                 'Not enough data to start new session: '
-                'both config and test should be present:%s\n', json.dumps(msg))
+                'both config and test should be present:%s\n', msg)
             return
         try:
             print(msg)
@@ -242,7 +242,7 @@ class Manager(object):
 
     def _handle_msg(self, msg):
         """Handle message from manager queue"""
-        _log.info('Recieved message:\n%s', json.dumps(msg))
+        _log.info('Recieved message:\n%s', msg)
         if 'cmd' in msg:
             # Recieved command from server
             self._handle_cmd(msg)
