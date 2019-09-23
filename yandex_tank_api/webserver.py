@@ -73,12 +73,12 @@ class ValidateConfgiHandler(APIHandler):  # pylint: disable=R0904
         except yaml.YAMLError:
             self.reply_reason(400, 'Config is not a valid YAML')
             return
-        _, errors, configinitial = TankConfig(
+        _, errors = TankConfig(
             [load_core_base_cfg()] + load_local_base_cfgs() + [config],
             with_dynamic_options=False
         ).validate()
 
-        self.reply_json(200, {'config': configinitial, 'errors': errors})
+        self.reply_json(200, {'config': yaml.safe_dump(config), 'errors': errors})
         return
 
 
