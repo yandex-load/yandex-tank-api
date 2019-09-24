@@ -77,7 +77,7 @@ class ValidateConfgiHandler(APIHandler):  # pylint: disable=R0904
         except AssertionError as aexc:
             self.reply_reason(400, repr(aexc))
             return
-        _, errors = TankConfig(
+        _, errors, configinitial = TankConfig(
             [load_core_base_cfg()] + load_local_base_cfgs() + [config],
             with_dynamic_options=False
         ).validate()
