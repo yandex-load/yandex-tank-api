@@ -112,8 +112,8 @@ class TankWorker(object):
         logger = logging.getLogger('')
         logger.setLevel(logging.DEBUG)
 
-        self.__add_log_file(logger, logging.DEBUG, 'tank.log')
-        self.__add_log_file(logger, logging.INFO, 'tank_brief.log')
+        self.__add_log_file(logger, logging.DEBUG, os.path.join(self.core.artifacts_dir, 'tank.log'))
+        self.__add_log_file(logger, logging.INFO, os.path.join(self.core.artifacts_dir, 'tank_brief.log'))
 
     @staticmethod
     def __get_configs_from_dir(config_dir):
